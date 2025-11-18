@@ -111,12 +111,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file size (4MB limit to match Vercel's default body size limit)
+    // Vercel free/hobby plan has 4.5MB limit, Pro can be configured higher
+    const maxSize = 4 * 1024 * 1024; // 4MB (safe limit for Vercel)
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: `File size exceeds limit of ${maxSize / 1024 / 1024}MB` },
-        { status: 400 }
+        { error: `File size exceeds limit of ${maxSize / 1024 / 1024}MB. Please use a smaller file or compress your Excel file.` },
+        { status: 413 }
       );
     }
 

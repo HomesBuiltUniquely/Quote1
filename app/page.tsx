@@ -1106,14 +1106,36 @@ export default function Home() {
         setMetadata(null);
         setSummary(null);
 
+        // Check file size before uploading (4MB limit)
+        const maxSize = 4 * 1024 * 1024; // 4MB
+        if (file.size > maxSize) {
+          setStatus({
+            state: "error",
+            message: `File size exceeds 4MB limit. Please use a smaller file or compress your Excel file. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+          });
+          return;
+        }
+
         const response = await fetch("/api/convert", {
           method: "POST",
           body: formData,
         });
 
         if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          throw new Error(data?.error || "Conversion failed. Please try again.");
+          let errorMessage = "Conversion failed. Please try again.";
+          
+          if (response.status === 413) {
+            errorMessage = "File is too large. Maximum file size is 4MB. Please compress your Excel file or use a smaller file.";
+          } else {
+            try {
+              const data = await response.json();
+              errorMessage = data?.error || errorMessage;
+            } catch {
+              // If JSON parsing fails, use default message
+            }
+          }
+          
+          throw new Error(errorMessage);
         }
 
         const data = await response.json();
@@ -1434,6 +1456,8 @@ export default function Home() {
               />
               <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                 Data stays in this session; we only derive the preview needed to build your PDF.
+                <br />
+                Maximum file size: 4MB
               </span>
             </label>
  
