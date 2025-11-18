@@ -420,10 +420,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       <div ref={ref} className="space-y-10 p-8">
       {metaProp && (
         <section className="space-y-6">
-          <div className="flex flex-col gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-4 border-b border-zinc-200 pb-4 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-zinc-900 dark:text-zinc-50">Quotation</h1>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              <h1 className="text-4xl font-bold text-zinc-900">Quotation</h1>
+              <p className="text-sm text-zinc-600">
                 Hi{" "}
                 <MetaFieldInput
                   field="customer"
@@ -438,13 +438,13 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                 questions.
               </p>
             </div>
-            <div className="text-right text-sm text-zinc-600 dark:text-zinc-300">
+            <div className="text-right text-sm text-zinc-600">
               <MetaFieldInput
                 field="quoteNumber"
                 value={metaProp.quoteNumber}
                 placeholder="QUOTE-####"
                 onChange={onMetaChange}
-                className="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
+                className="text-lg font-semibold text-zinc-900"
               />
               <div>
                 <span>Issued on </span>
@@ -460,8 +460,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Project Details</h2>
-            <div className="grid gap-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-6 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60 md:grid-cols-2 lg:grid-cols-4">
+            <h2 className="text-base font-semibold text-zinc-900">Project Details</h2>
+            <div className="grid gap-4 rounded-3xl border border-zinc-200 bg-zinc-50 p-6 text-sm shadow-sm md:grid-cols-2 lg:grid-cols-4">
               {[
                 { field: "propertyName" as const },
                 { field: "totalBuiltUpArea" as const },
@@ -479,11 +479,11 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                 return (
                   <div
                     key={field}
-                    className={`flex flex-col gap-1 rounded-2xl border border-transparent bg-white p-4 dark:bg-zinc-950 ${
+                    className={`flex flex-col gap-1 rounded-2xl border border-transparent bg-white p-4 ${
                       fullWidth ? "md:col-span-2 lg:col-span-4" : ""
                     }`}
                   >
-                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {config?.label ?? field}
                     </span>
                     <MetaFieldInput
@@ -491,7 +491,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                       value={fieldValue}
                       placeholder={config?.label ?? "Enter value"}
                       onChange={onMetaChange}
-                      className="text-base font-semibold text-zinc-900 dark:text-zinc-100"
+                      className="text-base font-semibold text-zinc-900"
                       multiline={multiline || config?.multiline}
                     />
                     {subtitleField && (
@@ -504,7 +504,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                         }
                         placeholder={subtitleConfig?.label ?? "Details"}
                         onChange={onMetaChange}
-                        className="text-xs text-zinc-500 dark:text-zinc-400"
+                        className="text-xs text-zinc-500"
                       />
                     )}
                   </div>
@@ -517,10 +517,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
 
       {hasSummaryTable && (
         <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Room Summary</h3>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="w-full text-left text-sm text-zinc-700 dark:text-zinc-200">
-              <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          <h3 className="text-lg font-semibold text-zinc-900">Room Summary</h3>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm text-zinc-700">
+              <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
                 <tr>
                   <th className="px-4 py-3">Room</th>
                   <th className="px-4 py-3 text-right">Modules</th>
@@ -533,7 +533,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </thead>
               <tbody>
                 {roomSummaryRows.map((row) => (
-                  <tr key={row.room} className="border-t border-zinc-100 dark:border-zinc-800">
+                  <tr key={row.room} className="border-t border-zinc-100">
                     <td className="px-4 py-3 font-semibold uppercase tracking-wide bg-red-600 text-white">
                       {row.room}
                     </td>
@@ -542,13 +542,13 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     <td className="px-4 py-3 text-right">{formatMoney(row.appliances)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(row.services)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(row.furniture)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-zinc-900 dark:text-zinc-50">
+                    <td className="px-4 py-3 text-right font-semibold text-zinc-900">
                       {formatMoney(row.total)}
                     </td>
                   </tr>
                 ))}
                 {roomSummaryRows.length > 0 && (
-                  <tr className="border-t border-zinc-200 bg-zinc-100 font-semibold uppercase tracking-wide text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-50">
+                  <tr className="border-t border-zinc-200 bg-zinc-100 font-semibold uppercase tracking-wide text-zinc-900">
                     <td className="px-4 py-3">Total</td>
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.modules)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.accessories)}</td>
@@ -559,7 +559,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   </tr>
                 )}
                 {effectiveDiscountValue != null && effectiveDiscountValue !== 0 && (
-                  <tr className="border-t border-blue-200 bg-blue-50 font-semibold text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40">
+                  <tr className="border-t border-blue-200 bg-blue-50 font-semibold text-rose-700">
                     <td className="px-4 py-3" colSpan={6}>
                       <div className="flex justify-end uppercase tracking-wide text-blue-600/80">Discount</div>
                     </td>
@@ -567,7 +567,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   </tr>
                 )}
                 {calculatedTotalAfterDiscount != null && (
-                  <tr className="border-t border-zinc-200 bg-zinc-200 font-semibold uppercase tracking-wide text-zinc-900 dark:border-zinc-800 dark:bg-zinc-800/80 dark:text-zinc-50">
+                  <tr className="border-t border-zinc-200 bg-zinc-200 font-semibold uppercase tracking-wide text-zinc-900">
                     <td className="px-4 py-3">Total after discount</td>
                     <td className="px-4 py-3 text-right " colSpan={5}></td>
                     <td className="px-4 py-3 text-right">{formatMoney(calculatedTotalAfterDiscount)}</td>
@@ -576,29 +576,29 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">* All amounts include GST @ 18%</p>
+          <p className="text-xs text-zinc-500">* All amounts include GST @ 18%</p>
         </section>
       )}
 
       {(effectiveDiscountValue != null || calculatedTotalAfterDiscount != null) && (
         <section className="grid gap-4 sm:grid-cols-2">
           {effectiveDiscountValue != null && (
-            <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6 text-rose-700 shadow-sm dark:border-blue-900/60 dark:bg-black-950/40 dark:text-black-200">
+            <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6 text-rose-700 shadow-sm">
               <h4 className="text-xs text-blue-600/80 font-semibold uppercase tracking-[0.2em]">Discount Applied</h4>
               <p className="mt-3 text-blue-600/80 text-3xl font-bold">{formatMoney(Math.abs(effectiveDiscountValue))}</p>
               {totalBeforeDiscount != null && (
-                <p className="mt-2 text-xs text-blue-600/80 dark:text-rose-300/80">
+                <p className="mt-2 text-xs text-blue-600/80">
                   Subtracted from rooms total of {formatMoney(totalBeforeDiscount)}
                 </p>
               )}
             </div>
           )}
           {calculatedTotalAfterDiscount != null && (
-            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-700 shadow-sm dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+            <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-700 shadow-sm">
               <h4 className="text-xs font-semibold uppercase tracking-[0.2em]">Total Payable</h4>
               <p className="mt-3 text-3xl font-bold">{formatMoney(calculatedTotalAfterDiscount)}</p>
               {effectiveDiscountValue != null && (
-                <p className="mt-2 text-xs text-emerald-600/90 dark:text-emerald-300/90">
+                <p className="mt-2 text-xs text-emerald-600/90">
                   After applying discount of {formatMoney(Math.abs(effectiveDiscountValue))}
                 </p>
               )}
@@ -615,8 +615,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
 
         return (
           <section key={room.name} className="space-y-6">
-            <div className="border-b border-zinc-200 pb-2 dark:border-zinc-800">
-              <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            <div className="border-b border-zinc-200 pb-2">
+              <h3 className="text-lg font-semibold text-zinc-900">
                 {room.name}
               </h3>
             </div>
@@ -631,18 +631,18 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                 return (
                   <div
                     key={`${room.name}-${type.type}`}
-                    className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60"
+                    className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 shadow-sm"
                   >
                     <header className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <h4 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
+                        <h4 className="text-base font-semibold text-zinc-900">
                           {type.label}
                         </h4>
-                        <p className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <p className="text-xs uppercase tracking-wide text-zinc-500">
                           {type.type}
                         </p>
                       </div>
-                      <div className="text-sm text-zinc-600 dark:text-zinc-300">
+                      <div className="text-sm text-zinc-600">
                         {type.dimensionAggregate
                           ? `Total width: ${formatNumber.format(type.dimensionAggregate)} (units as per sheet)`
                           : ""}
@@ -653,13 +653,13 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                       <div className={`grid gap-4 ${gridColumns}`}>
                         {hasMaterials && (
                           <div className="space-y-2">
-                            <h5 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                            <h5 className="text-sm font-semibold text-zinc-800">
                               Materials
                             </h5>
-                            <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm leading-relaxed text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                            <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm leading-relaxed text-zinc-700">
                               {Object.entries(type.materials).map(([key, value]) => (
                                 <p key={key}>
-                                  <span className="font-medium text-zinc-900 dark:text-zinc-50">
+                                  <span className="font-medium text-zinc-900">
                                     {key}:
                                   </span>{" "}
                                   {value}
@@ -671,10 +671,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
 
                         {hasPricing && (
                           <div className="space-y-2">
-                            <h5 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                            <h5 className="text-sm font-semibold text-zinc-800">
                               Pricing Summary
                             </h5>
-                            <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                            <div className="rounded-xl border border-zinc-200 bg-white p-3 text-sm text-zinc-700">
                               <p>
                                 <span className="font-medium">Total:</span>{" "}
                                 {type.stats.total != null
@@ -688,9 +688,9 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     )}
 
                     {type.items.length > 0 && (
-                      <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-                        <table className="w-full min-w-[600px] text-left text-sm text-zinc-700 dark:text-zinc-200">
-                          <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                      <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                        <table className="w-full min-w-[600px] text-left text-sm text-zinc-700">
+                          <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
                             <tr>
                               <th className="px-4 py-3">Code</th>
                               <th className="px-4 py-3">Unit Name</th>
@@ -702,9 +702,9 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                             {type.items.map((item, index) => (
                               <tr
                                 key={`${type.type}-${item.code || "no-code"}-${index}`}
-                                className="border-t border-zinc-100 dark:border-zinc-800"
+                                className="border-t border-zinc-100"
                               >
-                                <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
+                                <td className="px-4 py-3 font-medium text-zinc-900">
                                   {item.code || "-"}
                                 </td>
                                 <td className="px-4 py-3">{item.description}</td>
@@ -730,25 +730,25 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
 
       <section className="space-y-6">
         <div className="space-y-2 text-center">
-          <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
+          <h2 className="text-2xl font-semibold text-zinc-900">
             Project Policies &amp; Materials
           </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             Specifications, materials, and policies governing design, installation, and service.
           </p>
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Core Materials</h3>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="w-full text-left text-sm text-zinc-700 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Core Materials</h3>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm text-zinc-700">
               <tbody>
                 {["Core Materials (Kitchen base unit, Bathroom Vanity Carcass, etc.)", "Dry Areas (Wardrobe & Lofts, TV units,etc)"]
                   .map((label, index) => {
                     const value = index === 0 ? "Century BWP (IS-710 Grade)" : "Century Sainik MR (ISI-303)";
                     return (
-                      <tr key={label} className="border-t border-zinc-100 first:border-t-0 dark:border-zinc-800">
-                        <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{label}</td>
+                      <tr key={label} className="border-t border-zinc-100 first:border-t-0">
+                        <td className="px-4 py-3 font-medium text-zinc-900">{label}</td>
                         <td className="px-4 py-3">{value}</td>
                       </tr>
                     );
@@ -756,19 +756,19 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </tbody>
             </table>
           </div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             ALL MODULES CAN BE CUSTOMIZED AS PER REQUIREMENT / ACTUAL SIZE
           </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             Note: Plywood is not suggested for shutters, as they bend over time. HDHMR Pro is a better alternative
             &amp; recommended.
           </p>
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Material Thickness</h3>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="w-full text-left text-sm text-zinc-700 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Material Thickness</h3>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm text-zinc-700">
               <tbody>
                 {[
                   {
@@ -780,8 +780,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     value: "8mm (Including Laminate)",
                   },
                 ].map((row) => (
-                  <tr key={row.label} className="border-t border-zinc-100 first:border-t-0 dark:border-zinc-800">
-                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{row.label}</td>
+                  <tr key={row.label} className="border-t border-zinc-100 first:border-t-0">
+                    <td className="px-4 py-3 font-medium text-zinc-900">{row.label}</td>
                     <td className="px-4 py-3">{row.value}</td>
                   </tr>
                 ))}
@@ -791,9 +791,9 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Core Material Brands</h3>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="w-full text-left text-sm text-zinc-700 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Core Material Brands</h3>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm text-zinc-700">
               <tbody>
                 {[
                   { label: "BWP (Boiling water proof)", value: "Century Club Prime" },
@@ -803,22 +803,22 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   { label: "Edge Banding (Outside)", value: "Rehau (2mm Exterior)" },
                   { label: "Edge Banding (Inside)", value: "Rehau (0.8mm Exterior)" },
                 ].map((row) => (
-                  <tr key={row.label} className="border-t border-zinc-100 first:border-t-0 dark:border-zinc-800">
-                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{row.label}</td>
+                  <tr key={row.label} className="border-t border-zinc-100 first:border-t-0">
+                    <td className="px-4 py-3 font-medium text-zinc-900">{row.label}</td>
                     <td className="px-4 py-3">{row.value}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             We recommend checking physical samples of all finish options at our experience centers.
           </p>
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Finish Options</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Finish Options</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
             <ul className="space-y-2">
               <li>Outside Laminates: 1 mm thickness, choose from 200+ options. Prices vary by laminate range.</li>
               <li>
@@ -837,12 +837,12 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Adhesive &amp; Accessories</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-50">Adhesive</p>
+          <h3 className="text-lg font-semibold text-zinc-900">Adhesive &amp; Accessories</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
+            <p className="font-semibold text-zinc-900">Adhesive</p>
             <p>Brand: Fevicol</p>
-            <hr className="my-3 border-zinc-200 dark:border-zinc-800" />
-            <p className="font-semibold text-zinc-900 dark:text-zinc-50">Accessories Included</p>
+            <hr className="my-3 border-zinc-200" />
+            <p className="font-semibold text-zinc-900">Accessories Included</p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Shutter Hinges: Hettich, Ebco, Häfele</li>
               <li>Drawer Channels: Hettich, Ebco, Häfele</li>
@@ -854,8 +854,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Design Information</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Design Information</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
             <ul className="list-disc space-y-1 pl-5">
               <li>Manufacturing Type: Fully modular by default; customizable during design phase.</li>
               <li>Wardrobe internal design includes 1 drawer &amp; two shelves by default; final cost as per selection.</li>
@@ -870,14 +870,14 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Site Usage &amp; Terms</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 space-y-3">
+          <h3 className="text-lg font-semibold text-zinc-900">Site Usage &amp; Terms</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm space-y-3">
             <div>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-50">Flat Usage</p>
+              <p className="font-semibold text-zinc-900">Flat Usage</p>
               <p>Workers require electrical &amp; water connections and one bathroom during the project schedule.</p>
             </div>
             <div>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-50">Design Sign-off Terms</p>
+              <p className="font-semibold text-zinc-900">Design Sign-off Terms</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>Laminate colors may vary from renders; check samples before finalizing.</li>
                 <li>Wood grain laminates: review full sheet if required before production.</li>
@@ -886,14 +886,14 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </ul>
             </div>
             <div>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-50">Cleaning</p>
+              <p className="font-semibold text-zinc-900">Cleaning</p>
               <p>
                 One-time professional cleaning (furniture, bathrooms, debris removal) provided at project end. Interim
                 cleaning for occasions such as Pooja is chargeable.
               </p>
             </div>
             <div>
-              <p className="font-semibold text-zinc-900 dark:text-zinc-50">Final Coat of Paint</p>
+              <p className="font-semibold text-zinc-900">Final Coat of Paint</p>
               <ul className="list-disc space-y-1 pl-5">
                 <li>Recommended after interior completion to address installation marks.</li>
                 <li>Cost excluded unless specified in quote.</li>
@@ -904,8 +904,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Post Handover Service</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Post Handover Service</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
             <ul className="list-disc space-y-1 pl-5">
               <li>Raise issues via care@hubinterior.com after handover.</li>
               <li>Two free service visits within 12 months for routine maintenance &amp; alignments.</li>
@@ -919,8 +919,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Warranty</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Warranty</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
             <ul className="list-disc space-y-1 pl-5">
               <li>Modular units: 10-year product warranty against manufacturing defects.</li>
               <li>Hardware, accessories &amp; appliances: as per manufacturer warranty.</li>
@@ -936,10 +936,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Payment Schedule</h3>
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="w-full text-left text-sm text-zinc-700 dark:text-zinc-200">
-              <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+          <h3 className="text-lg font-semibold text-zinc-900">Payment Schedule</h3>
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <table className="w-full text-left text-sm text-zinc-700">
+              <thead className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600">
                 <tr>
                   <th className="px-4 py-3">Milestone</th>
                   <th className="px-4 py-3">Percentage</th>
@@ -948,8 +948,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </thead>
               <tbody>
                 {paymentRows.map((row) => (
-                  <tr key={row.stage} className="border-t border-zinc-100 first:border-t-0 dark:border-zinc-800">
-                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">{row.stage}</td>
+                  <tr key={row.stage} className="border-t border-zinc-100 first:border-t-0">
+                    <td className="px-4 py-3 font-medium text-zinc-900">{row.stage}</td>
                     <td className="px-4 py-3">{row.percentage}%</td>
                     <td className="px-4 py-3 text-right">
                       {row.amount != null ? formatCurrency.format(row.amount) : "-"}
@@ -957,8 +957,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   </tr>
                 ))}
 
-                <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold dark:border-zinc-800 dark:bg-zinc-900/60">
-                  <td className="px-4 py-3 text-zinc-900 dark:text-zinc-50">Total</td>
+                <tr className="border-t border-zinc-200 bg-zinc-50 font-semibold">
+                  <td className="px-4 py-3 text-zinc-900">Total</td>
                   <td className="px-4 py-3">100%</td>
                   <td className="px-4 py-3 text-right">
                     {paymentTotal != null ? formatCurrency.format(paymentTotal) : "-"}
@@ -967,24 +967,24 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-xs text-zinc-500">
             Update the discount amount above to refresh the payable totals automatically.
           </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             Works like electrical, plumbing, painting, countertops, tiling, false ceiling, etc., are considered under civil work.
           </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             Non-modular products include appliances, fixtures, lighting, decor items, wallpapers, wooden flooring, blinds,
             curtains, readymade furniture, etc.
           </p>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-zinc-600">
             * NEFT/IMPS accepted. Card/NetBanking attracts 2% convenience fee (waived for first 10% tranche).
           </p>
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Cancellation &amp; Scope Change</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+          <h3 className="text-lg font-semibold text-zinc-900">Cancellation &amp; Scope Change</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
             <ul className="list-disc space-y-1 pl-5">
               <li>Booking: 100% design advance refundable if HUB can't match a valid competitor quote within 24 hours.</li>
               <li>Design Stage: No refunds.</li>
@@ -1000,8 +1000,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Delivery &amp; Installation</h3>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 space-y-2">
+          <h3 className="text-lg font-semibold text-zinc-900">Delivery &amp; Installation</h3>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm space-y-2">
             <p>Delivery and installation occur on/before the timeline communicated via email, at the provided address.</p>
             <p>Delivery date calculated post the following "All-Set-Go" conditions:</p>
             <ul className="list-disc space-y-1 pl-5">
@@ -1011,7 +1011,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
               <li>Customer hands over site meeting all contractual conditions.</li>
               <li>Customer agrees not to solicit vendors outside HUB's approved scope without written consent.</li>
             </ul>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            <p className="text-sm text-zinc-600">
               * Disclaiming of Liability: HUB is not liable for products/services from non-approved vendors or where approved vendors act outside assigned scope. Any third-party arrangements are at the customer's risk and lie outside HUB's warranty.
             </p>
           </div>
@@ -1019,8 +1019,8 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Disclaimer of Liability</h3>
-        <p className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+        <h3 className="text-lg font-semibold text-zinc-900">Disclaimer of Liability</h3>
+        <p className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700 shadow-sm">
           HUB shall not be liable in any manner for any products or services provided by vendors, contractors, or agencies who are referred to the customer but are not formally registered as approved vendors with HUB, or where approved vendors act outside their allocated scope. All quotations, negotiations, payments, commitments, or arrangements with such third parties are at the customer's own risk. HUB's warranty and service obligations do not extend to such products or services, and no statement or referral shall be construed as binding on HUB.
         </p>
       </section>
@@ -1486,11 +1486,11 @@ export default function Home() {
   }, [pdfFilename, preview, isPreviewOpen]);
  
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-16 font-sans dark:bg-zinc-900">
-      <main className="w-full max-w-5xl space-y-10 rounded-3xl bg-white p-10 shadow-xl dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-16 font-sans">
+      <main className="w-full max-w-5xl space-y-10 rounded-3xl bg-white p-10 shadow-xl">
         <header className="space-y-2 text-center">
           <h1 className="text-3xl font-semibold">Excel to PDF Designer Summary</h1>
-          <p className="text-base text-zinc-600 dark:text-zinc-400">
+          <p className="text-base text-zinc-600">
             Upload an Excel workbook (.xlsx or .xls) and we parse every worksheet into a
             structured summary grouped by room and cabinet type. Preview the result below and
             download it as a formatted PDF.
@@ -1500,7 +1500,7 @@ export default function Home() {
         <section>
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col gap-6 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/60 p-6 text-sm dark:border-zinc-700 dark:bg-zinc-900/60"
+            className="flex flex-col gap-6 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/60 p-6 text-sm"
           >
             <label
               htmlFor="file"
@@ -1512,7 +1512,7 @@ export default function Home() {
                 name="file"
                 type="file"
                 accept=".xls,.xlsx,.xlsm"
-                className="mt-1 w-full cursor-pointer rounded-xl border border-zinc-300 bg-white p-3 text-sm text-zinc-700 transition hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                className="mt-1 w-full cursor-pointer rounded-xl border border-zinc-300 bg-white p-3 text-sm text-zinc-700 transition hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <span className="text-xs font-normal text-zinc-400">
                 Data stays in this session; we only derive the preview needed to build your PDF.
@@ -1532,21 +1532,21 @@ export default function Home() {
         </section>
  
         {status.state === "error" && (
-          <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
             {status.message}
           </p>
         )}
         {status.state === "success" && (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
             {status.message}
           </p>
         )}
  
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold">Preview</h2>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              <p className="text-sm text-zinc-600">
                 Generate a preview to review the full designer summary and download it as a PDF.
               </p>
             </div>
@@ -1554,7 +1554,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setIsPreviewOpen(true)}
-                className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-4 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={!preview || !preview.length}
               >
                 Open Full Page Preview
@@ -1562,7 +1562,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={handleDownloadPdf}
-                className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500"
+                className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={!preview || !preview.length || isGeneratingPdf}
               >
                 {isGeneratingPdf ? "Preparing PDF…" : `Download PDF (${pdfFilename})`}
@@ -1571,22 +1571,22 @@ export default function Home() {
           </div>
  
           {!preview || !preview.length ? (
-            <div className="mt-6 rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            <div className="mt-6 rounded-xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500">
               Upload a workbook to enable preview actions.
             </div>
           ) : (
-            <div className="mt-6 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-6 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+            <div className="mt-6 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-6 text-sm text-emerald-700">
               Preview generated. Use the buttons above to open the full-page view or download the PDF.
             </div>
           )}
         </section>
  
         {metadata && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">Customize Quotation Header</h2>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                <p className="text-sm text-zinc-600">
                   Update any of the fields below to fine-tune the preview content before exporting.
                 </p>
               </div>
@@ -1612,7 +1612,7 @@ export default function Home() {
                   onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
                     handleMetaFieldChange(field, event.target.value),
                   className:
-                    "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm transition hover:border-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100",
+                    "mt-1 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm transition hover:border-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200",
                   placeholder: label,
                   type: isNumeric ? "number" : "text",
                   inputMode: isNumeric ? ("decimal" as const) : undefined,
@@ -1625,11 +1625,11 @@ export default function Home() {
                 return (
                   <label
                     key={field}
-                    className={`flex flex-col rounded-2xl border border-transparent bg-zinc-50 p-4 text-sm dark:bg-zinc-900/40 ${
+                    className={`flex flex-col rounded-2xl border border-transparent bg-zinc-50 p-4 text-sm ${
                       fullWidth ? "md:col-span-2 lg:col-span-3" : ""
                     }`}
                   >
-                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {label}
                     </span>
                     {multiline ? (
@@ -1658,16 +1658,16 @@ export default function Home() {
             onClick={closePreview}
           />
           <div
-            className={`relative z-10 mt-6 mb-6 flex w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-200 dark:bg-zinc-950 ${
+            className={`relative z-10 mt-6 mb-6 flex w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl transition-all duration-200 ${
               isPreviewOpen ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
             }`}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-4 backdrop-blur">
               <div>
-                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                <h2 className="text-lg font-semibold text-zinc-900">
                   Designer Summary Preview
                 </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-zinc-500">
                   Review the parsed workbook below. Use the buttons to download or close the preview.
                 </p>
               </div>
@@ -1683,7 +1683,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={closePreview}
-                  className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300 dark:border-zinc-700 dark:text-zinc-200 dark:hover:border-zinc-500"
+                  className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300"
                 >
                   Close
                 </button>
