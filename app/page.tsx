@@ -1085,6 +1085,51 @@ export default function Home() {
     []
   );
 
+  const uploadFileInChunks = useCallback(async (file: File): Promise<string> => {
+    const chunkSize = 3 * 1024 * 1024; // 3MB chunks (safe for Vercel)
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const uploadId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Upload chunks sequentially
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+
+      const chunkFormData = new FormData();
+      chunkFormData.append("chunk", chunk);
+      chunkFormData.append("chunkIndex", i.toString());
+      chunkFormData.append("totalChunks", totalChunks.toString());
+      chunkFormData.append("uploadId", uploadId);
+      chunkFormData.append("fileName", file.name);
+
+      const response = await fetch("/api/upload-chunk", {
+        method: "POST",
+        body: chunkFormData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: "Chunk upload failed" }));
+        throw new Error(error.error || `Failed to upload chunk ${i + 1} of ${totalChunks}`);
+      }
+
+      const result = await response.json();
+      if (result.complete) {
+        return uploadId;
+      }
+
+      // Update status for progress
+      setStatus({
+        state: "uploading",
+        message: `Uploading... ${i + 1} of ${totalChunks} chunks`,
+      } as Status);
+    }
+
+    // Wait a bit for the last chunk to be processed
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return uploadId;
+  }, []);
+
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -1106,26 +1151,41 @@ export default function Home() {
         setMetadata(null);
         setSummary(null);
 
-        // Check file size before uploading (4.5MB limit for Vercel Pro)
-        const maxSize = 4.5 * 1024 * 1024; // 4.5MB (Vercel Pro limit)
-        if (file.size > maxSize) {
+        const maxDirectSize = 4 * 1024 * 1024; // 4MB for direct upload
+        let uploadId: string | null = null;
+
+        // Use chunked upload for files larger than 4MB
+        if (file.size > maxDirectSize) {
           setStatus({
-            state: "error",
-            message: `File size exceeds 4.5MB limit. Please use a smaller file or compress your Excel file. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
-          });
-          return;
+            state: "uploading",
+            message: "Uploading file in chunks...",
+          } as Status);
+          uploadId = await uploadFileInChunks(file);
         }
+
+        // Prepare conversion request
+        const convertFormData = new FormData();
+        if (uploadId) {
+          convertFormData.append("uploadId", uploadId);
+        } else {
+          convertFormData.append("file", file);
+        }
+
+        setStatus({
+          state: "uploading",
+          message: "Processing file...",
+        } as Status);
 
         const response = await fetch("/api/convert", {
           method: "POST",
-          body: formData,
+          body: convertFormData,
         });
 
         if (!response.ok) {
           let errorMessage = "Conversion failed. Please try again.";
           
           if (response.status === 413) {
-            errorMessage = "File is too large. Maximum file size is 4.5MB. Please compress your Excel file or use a smaller file.";
+            errorMessage = "File is too large. Please try again or use a smaller file.";
           } else {
             try {
               const data = await response.json();
@@ -1164,7 +1224,7 @@ export default function Home() {
         });
       }
     },
-    []
+    [uploadFileInChunks]
   );
 
   const closePreview = useCallback(() => setIsPreviewOpen(false), []);
@@ -1454,10 +1514,10 @@ export default function Home() {
                 accept=".xls,.xlsx,.xlsm"
                 className="mt-1 w-full cursor-pointer rounded-xl border border-zinc-300 bg-white p-3 text-sm text-zinc-700 transition hover:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
               />
-              <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs font-normal text-zinc-400">
                 Data stays in this session; we only derive the preview needed to build your PDF.
                 <br />
-                Maximum file size: 4.5MB (Vercel Pro)
+                Files up to 4MB upload directly. Larger files use chunked upload automatically.
               </span>
             </label>
  

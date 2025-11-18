@@ -99,49 +99,86 @@ type QuoteMetadata = {
   totalProjectCost?: number;
 };
 
+// Import chunk storage from upload-chunk route
+// Note: In production, use a shared storage solution like Redis
+let chunkStorage: Map<string, { chunks: Map<number, ArrayBuffer>; totalChunks: number; fileName: string }> | null = null;
+
+function getChunkStorage() {
+  // This is a workaround - in production, use Redis or a database
+  // For now, we'll fetch from the upload-chunk endpoint
+  return null;
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file");
-
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "Missing Excel file upload" },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size (4.5MB limit - Vercel Pro maximum body size)
-    // Vercel Pro allows up to 4.5MB for request body
-    const maxSize = 4.5 * 1024 * 1024; // 4.5MB (Vercel Pro limit)
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: `File size exceeds limit of ${maxSize / 1024 / 1024}MB. Please use a smaller file or compress your Excel file.` },
-        { status: 413 }
-      );
-    }
-
-    // Validate file type
-    const validTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-      "application/vnd.ms-excel", // .xls
-      "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
-    ];
-    if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|xlsm)$/i)) {
-      return NextResponse.json(
-        { error: "Invalid file type. Please upload an Excel file (.xlsx, .xls, or .xlsm)" },
-        { status: 400 }
-      );
-    }
+    const file = formData.get("file") as File | null;
+    const uploadId = formData.get("uploadId") as string | null;
 
     let buffer: ArrayBuffer;
-    try {
-      buffer = await file.arrayBuffer();
-    } catch (error) {
-      console.error("Error reading file buffer:", error);
+    let fileName: string;
+
+    // Handle chunked upload
+    if (uploadId && !file) {
+      // Fetch the complete file from chunk storage
+      try {
+        const origin = request.headers.get("origin") || request.headers.get("host");
+        const protocol = request.headers.get("x-forwarded-proto") || "https";
+        const baseUrl = origin?.startsWith("http") ? origin : `${protocol}://${origin}`;
+        const chunkResponse = await fetch(`${baseUrl}/api/upload-chunk?uploadId=${uploadId}`);
+        if (!chunkResponse.ok) {
+          return NextResponse.json(
+            { error: "Failed to retrieve uploaded file" },
+            { status: 400 }
+          );
+        }
+        buffer = await chunkResponse.arrayBuffer();
+        fileName = "uploaded.xlsx"; // Default name
+      } catch (error) {
+        console.error("Error fetching chunked file:", error);
+        return NextResponse.json(
+          { error: "Failed to retrieve uploaded file" },
+          { status: 500 }
+        );
+      }
+    } else if (file) {
+      // Direct file upload (for files under 4MB)
+      // Validate file size (4MB limit for direct upload)
+      const maxDirectSize = 4 * 1024 * 1024; // 4MB
+      if (file.size > maxDirectSize) {
+        return NextResponse.json(
+          { error: "File too large for direct upload. Please use chunked upload." },
+          { status: 413 }
+        );
+      }
+      
+      // Validate file type
+      const validTypes = [
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+        "application/vnd.ms-excel", // .xls
+        "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
+      ];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|xlsm)$/i)) {
+        return NextResponse.json(
+          { error: "Invalid file type. Please upload an Excel file (.xlsx, .xls, or .xlsm)" },
+          { status: 400 }
+        );
+      }
+
+      try {
+        buffer = await file.arrayBuffer();
+        fileName = file.name;
+      } catch (error) {
+        console.error("Error reading file buffer:", error);
+        return NextResponse.json(
+          { error: "Failed to read file. Please try again." },
+          { status: 500 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: "Failed to read file. Please try again." },
-        { status: 500 }
+        { error: "Missing Excel file upload or uploadId" },
+        { status: 400 }
       );
     }
 
