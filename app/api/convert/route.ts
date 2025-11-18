@@ -100,56 +100,130 @@ type QuoteMetadata = {
 };
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const file = formData.get("file");
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
 
-  if (!(file instanceof File)) {
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: "Missing Excel file upload" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File size exceeds limit of ${maxSize / 1024 / 1024}MB` },
+        { status: 400 }
+      );
+    }
+
+    // Validate file type
+    const validTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+      "application/vnd.ms-excel.sheet.macroEnabled.12", // .xlsm
+    ];
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls|xlsm)$/i)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Please upload an Excel file (.xlsx, .xls, or .xlsm)" },
+        { status: 400 }
+      );
+    }
+
+    let buffer: ArrayBuffer;
+    try {
+      buffer = await file.arrayBuffer();
+    } catch (error) {
+      console.error("Error reading file buffer:", error);
+      return NextResponse.json(
+        { error: "Failed to read file. Please try again." },
+        { status: 500 }
+      );
+    }
+
+    let workbook;
+    try {
+      workbook = read(buffer, { cellText: false, cellDates: true });
+    } catch (error) {
+      console.error("Error parsing Excel file:", error);
+      return NextResponse.json(
+        { error: "Failed to parse Excel file. Please ensure the file is not corrupted." },
+        { status: 400 }
+      );
+    }
+
+    if (!workbook.SheetNames.length) {
+      return NextResponse.json(
+        { error: "No sheets found in uploaded workbook" },
+        { status: 400 }
+      );
+    }
+
+    let materialsByRoom, financials, rooms, meta, payload;
+    try {
+      const summaryResult = parseSummarySheet(workbook);
+      materialsByRoom = summaryResult.materialsByRoom;
+      financials = summaryResult.financials;
+      const finalizedSummary = finalizeFinancials(financials);
+      rooms = aggregateRooms(workbook, materialsByRoom);
+
+      if (!rooms.length) {
+        return NextResponse.json(
+          { error: "No recognizable cabinet data found in workbook" },
+          { status: 400 }
+        );
+      }
+
+      meta = extractMetadata(workbook);
+      payload = formatRooms(rooms);
+    } catch (error) {
+      console.error("Error processing workbook:", error);
+      return NextResponse.json(
+        { error: "Error processing workbook data. Please check the file format." },
+        { status: 500 }
+      );
+    }
+
+    try {
+      const calculatedTotal = payload.reduce((roomSum, room) => {
+        return (
+          roomSum +
+          room.types.reduce((typeSum, type) => typeSum + (type.stats.total ?? 0), 0)
+        );
+      }, 0);
+
+      const finalizedSummary = finalizeFinancials(financials);
+      const preferredTotal =
+        finalizedSummary?.totalPayable != null && !Number.isNaN(finalizedSummary.totalPayable)
+          ? finalizedSummary.totalPayable
+          : calculatedTotal;
+
+      if (preferredTotal > 0 && meta.totalProjectCost == null) {
+        meta.totalProjectCost = Number(preferredTotal.toFixed(2));
+      }
+
+      return NextResponse.json({ rooms: payload, meta, summary: finalizedSummary });
+    } catch (error) {
+      console.error("Error calculating totals:", error);
+      return NextResponse.json(
+        { error: "Error calculating totals. Please try again." },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error("Unexpected error in convert route:", error);
     return NextResponse.json(
-      { error: "Missing Excel file upload" },
-      { status: 400 }
+      { 
+        error: error instanceof Error 
+          ? `Conversion failed: ${error.message}` 
+          : "An unexpected error occurred. Please try again." 
+      },
+      { status: 500 }
     );
   }
-
-  const buffer = await file.arrayBuffer();
-  const workbook = read(buffer, { cellText: false, cellDates: true });
-
-  if (!workbook.SheetNames.length) {
-    return NextResponse.json(
-      { error: "No sheets found in uploaded workbook" },
-      { status: 400 }
-    );
-  }
-
-  const { materialsByRoom, financials } = parseSummarySheet(workbook);
-  const finalizedSummary = finalizeFinancials(financials);
-  const rooms = aggregateRooms(workbook, materialsByRoom);
-
-  if (!rooms.length) {
-    return NextResponse.json(
-      { error: "No recognizable cabinet data found in workbook" },
-      { status: 400 }
-    );
-  }
-
-  const meta = extractMetadata(workbook);
-  const payload = formatRooms(rooms);
-  const calculatedTotal = payload.reduce((roomSum, room) => {
-    return (
-      roomSum +
-      room.types.reduce((typeSum, type) => typeSum + (type.stats.total ?? 0), 0)
-    );
-  }, 0);
-
-  const preferredTotal =
-    finalizedSummary?.totalPayable != null && !Number.isNaN(finalizedSummary.totalPayable)
-      ? finalizedSummary.totalPayable
-      : calculatedTotal;
-
-  if (preferredTotal > 0 && meta.totalProjectCost == null) {
-    meta.totalProjectCost = Number(preferredTotal.toFixed(2));
-  }
- 
-  return NextResponse.json({ rooms: payload, meta, summary: finalizedSummary });
 }
 
 function parseSummarySheet(workbook: ReturnType<typeof read>) {
