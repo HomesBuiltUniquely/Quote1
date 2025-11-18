@@ -111,9 +111,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file size (4MB limit to match Vercel's default body size limit)
-    // Vercel free/hobby plan has 4.5MB limit, Pro can be configured higher
-    const maxSize = 4 * 1024 * 1024; // 4MB (safe limit for Vercel)
+    // Validate file size (4.5MB limit - Vercel Pro maximum body size)
+    // Vercel Pro allows up to 4.5MB for request body
+    const maxSize = 4.5 * 1024 * 1024; // 4.5MB (Vercel Pro limit)
     if (file.size > maxSize) {
       return NextResponse.json(
         { error: `File size exceeds limit of ${maxSize / 1024 / 1024}MB. Please use a smaller file or compress your Excel file.` },

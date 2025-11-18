@@ -1106,12 +1106,12 @@ export default function Home() {
         setMetadata(null);
         setSummary(null);
 
-        // Check file size before uploading (4MB limit)
-        const maxSize = 4 * 1024 * 1024; // 4MB
+        // Check file size before uploading (4.5MB limit for Vercel Pro)
+        const maxSize = 4.5 * 1024 * 1024; // 4.5MB (Vercel Pro limit)
         if (file.size > maxSize) {
           setStatus({
             state: "error",
-            message: `File size exceeds 4MB limit. Please use a smaller file or compress your Excel file. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+            message: `File size exceeds 4.5MB limit. Please use a smaller file or compress your Excel file. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
           });
           return;
         }
@@ -1125,7 +1125,7 @@ export default function Home() {
           let errorMessage = "Conversion failed. Please try again.";
           
           if (response.status === 413) {
-            errorMessage = "File is too large. Maximum file size is 4MB. Please compress your Excel file or use a smaller file.";
+            errorMessage = "File is too large. Maximum file size is 4.5MB. Please compress your Excel file or use a smaller file.";
           } else {
             try {
               const data = await response.json();
@@ -1457,7 +1457,7 @@ export default function Home() {
               <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                 Data stays in this session; we only derive the preview needed to build your PDF.
                 <br />
-                Maximum file size: 4MB
+                Maximum file size: 4.5MB (Vercel Pro)
               </span>
             </label>
  
