@@ -406,7 +406,7 @@ function normalizeColor(value: string, property?: string) {
         return "transparent";
       }
     });
-   
+
     return normalized;
   } catch (error) {
     console.warn("Error in normalizeColor:", value, error);
@@ -424,14 +424,14 @@ function convertAllColorsInElement(element: HTMLElement) {
   // Convert all color-related styles on this element
   try {
     const style = window.getComputedStyle(element);
-   
+    
     // Get and convert all color properties - including shorthand properties
     const colorProps = ['color', 'backgroundColor', 'background', 'borderColor',
                         'borderTopColor', 'borderRightColor', 'borderBottomColor',
                         'borderLeftColor', 'border', 'borderTop', 'borderRight',
                         'borderBottom', 'borderLeft', 'outlineColor', 'outline',
                         'textShadow', 'boxShadow', 'columnRuleColor'] as const;
-   
+    
     colorProps.forEach((prop) => {
       try {
         let value = style.getPropertyValue(prop);
@@ -440,7 +440,7 @@ function convertAllColorsInElement(element: HTMLElement) {
           const camelProp = prop.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
           value = (style as any)[camelProp];
         }
-       
+        
         if (value && typeof value === 'string') {
           // Handle shadows first as they can contain colors within the value
           if ((prop === 'textShadow' || prop === 'boxShadow') && /(lab|oklab)\(/i.test(value)) {
@@ -460,7 +460,7 @@ function convertAllColorsInElement(element: HTMLElement) {
             }
           }
           // Handle border shorthand that might contain colors
-          else if ((prop === 'border' || prop.startsWith('border')) && !prop.includes('Color') && /(lab|oklab)\(/i.test(value)) {
+          else if ((prop === 'border' || prop.startsWith('border')) && !(prop as string).includes('Color') && /(lab|oklab)\(/i.test(value)) {
             // For border shorthand, try to preserve width and style, just replace color
             const borderParts = value.split(/\s+/);
             const hasLabColor = borderParts.some(part => /(lab|oklab)\(/i.test(part));
@@ -471,18 +471,18 @@ function convertAllColorsInElement(element: HTMLElement) {
             }
           }
           // Handle regular color properties
-          else if (/(lab|oklab)\(/i.test(value) || prop.includes('Color')) {
-          const normalized = normalizeColor(value, prop);
-          if (normalized && !/(lab|oklab)\(/i.test(normalized)) {
+          else if (/(lab|oklab)\(/i.test(value) || (prop as string).includes('Color')) {
+            const normalized = normalizeColor(value, prop);
+            if (normalized && !/(lab|oklab)\(/i.test(normalized)) {
               // Use setProperty with !important to ensure it takes precedence
               element.style.setProperty(prop, normalized, 'important');
-          } else {
+            } else {
               // Set safe fallback with !important
               if (prop === 'backgroundColor' || prop === 'background') {
                 element.style.setProperty('backgroundColor', 'white', 'important');
-            } else if (prop === 'color') {
+              } else if (prop === 'color') {
                 element.style.setProperty('color', 'black', 'important');
-              } else if (prop.includes('border') && prop.includes('Color')) {
+              } else if ((prop as string).includes('border') && (prop as string).includes('Color')) {
                 element.style.setProperty(prop, 'currentColor', 'important');
               } else if (prop === 'outlineColor' || prop === 'outline') {
                 element.style.setProperty(prop, 'currentColor', 'important');
@@ -491,6 +491,16 @@ function convertAllColorsInElement(element: HTMLElement) {
           }
         }
       } catch (error) {
+        // Ignore errors for individual properties - set fallback
+        try {
+          if (prop === 'backgroundColor' || prop === 'background') {
+            element.style.setProperty('backgroundColor', 'white', 'important');
+          } else if (prop === 'color') {
+            element.style.setProperty('color', 'black', 'important');
+          }
+        } catch (fallbackError) {
+          // Ignore fallback errors too
+        }
         // Ignore errors for individual properties - set fallback
         try {
           if (prop === 'backgroundColor' || prop === 'background') {
@@ -511,6 +521,13 @@ function convertAllColorsInElement(element: HTMLElement) {
     } catch (fallbackError) {
       // Ignore if fallbacks fail
     }
+    // Set safe fallbacks if style access fails
+    try {
+      element.style.setProperty('color', 'black', 'important');
+      element.style.setProperty('backgroundColor', 'white', 'important');
+    } catch (fallbackError) {
+      // Ignore if fallbacks fail
+    }
   }
  
   // Recursively convert colors in all children
@@ -519,7 +536,7 @@ function convertAllColorsInElement(element: HTMLElement) {
       convertAllColorsInElement(child);
     }
   });
- 
+  
   // Also check text nodes' parent styles
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let textNode;
@@ -545,39 +562,39 @@ function createPrintableClone(source: HTMLElement) {
   const convertInputsToText = (element: HTMLElement) => {
     // Find all input and textarea elements
     const inputs = element.querySelectorAll('input, textarea');
-   
+    
     inputs.forEach((input) => {
       if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLTextAreaElement)) {
         return;
       }
-     
+      
       const span = document.createElement('span');
       // Use value if present, otherwise show placeholder (but not if it's empty)
       // Clean up trailing dashes and whitespace
       let value = input.value || (input.placeholder && input.placeholder.trim() ? input.placeholder : '');
       value = value.replace(/\s*-\s*$/, '').trim(); // Remove trailing dash and whitespace
       span.textContent = value;
-     
+      
       // Get computed styles from the cloned input (styles should already be applied)
       // If not, try to find the original input
       let computedStyle = window.getComputedStyle(input);
-     
+      
       // Try to find the original input to ensure we have the correct styles
       let originalInput: HTMLInputElement | HTMLTextAreaElement | null = null;
       const inputName = input.getAttribute('name');
       const inputId = input.id;
-     
+      
       if (inputId) {
         originalInput = source.querySelector(`#${inputId}`) as HTMLInputElement | HTMLTextAreaElement | null;
       }
       if (!originalInput && inputName) {
         originalInput = source.querySelector(`[name="${inputName}"]`) as HTMLInputElement | HTMLTextAreaElement | null;
       }
-     
+      
       if (originalInput) {
         computedStyle = window.getComputedStyle(originalInput);
       }
-     
+      
       // Apply all relevant styles - preserve layout properties
       const inputDisplay = computedStyle.display;
       if (inputDisplay === 'inline' || inputDisplay === 'inline-block' || inputDisplay === 'block') {
@@ -585,14 +602,14 @@ function createPrintableClone(source: HTMLElement) {
       } else {
         span.style.display = 'inline-block';
       }
-     
+      
       span.style.width = computedStyle.width || '100%';
       span.style.height = computedStyle.height || 'auto';
       span.style.minWidth = computedStyle.minWidth || 'auto';
       span.style.maxWidth = computedStyle.maxWidth || 'none';
       span.style.minHeight = computedStyle.minHeight || 'auto';
       span.style.maxHeight = computedStyle.maxHeight || 'none';
-     
+      
       span.style.fontFamily = computedStyle.fontFamily;
       span.style.fontSize = computedStyle.fontSize;
       span.style.fontWeight = computedStyle.fontWeight;
@@ -600,7 +617,7 @@ function createPrintableClone(source: HTMLElement) {
       span.style.lineHeight = computedStyle.lineHeight;
       span.style.letterSpacing = computedStyle.letterSpacing;
       span.style.textAlign = computedStyle.textAlign;
-     
+      
       // Preserve flexbox properties if parent is flex
       if (input.parentElement) {
         const parentStyle = window.getComputedStyle(input.parentElement);
@@ -612,7 +629,7 @@ function createPrintableClone(source: HTMLElement) {
           span.style.alignSelf = computedStyle.alignSelf;
         }
       }
-     
+      
       span.style.padding = computedStyle.padding;
       span.style.paddingTop = computedStyle.paddingTop;
       span.style.paddingRight = computedStyle.paddingRight;
@@ -623,19 +640,19 @@ function createPrintableClone(source: HTMLElement) {
       span.style.marginRight = computedStyle.marginRight;
       span.style.marginBottom = computedStyle.marginBottom;
       span.style.marginLeft = computedStyle.marginLeft;
-     
+      
       // Normalize colors before applying
       const normalizedSpanColor = normalizeColor(computedStyle.color, "color");
-      span.style.color = normalizedSpanColor && !/(lab|oklab)\(/i.test(normalizedSpanColor)
-        ? normalizedSpanColor
+      span.style.color = normalizedSpanColor && !/(lab|oklab)\(/i.test(normalizedSpanColor) 
+        ? normalizedSpanColor 
         : "black";
-     
+      
       // Normalize border colors
       const normalizedBorderColor = normalizeColor(computedStyle.borderColor, "borderColor");
       span.style.borderColor = normalizedBorderColor && !/(lab|oklab)\(/i.test(normalizedBorderColor)
         ? normalizedBorderColor
         : computedStyle.borderColor || "currentColor";
-     
+      
       span.style.borderWidth = computedStyle.borderWidth;
       span.style.borderStyle = computedStyle.borderStyle;
       span.style.borderTopWidth = computedStyle.borderTopWidth;
@@ -643,7 +660,7 @@ function createPrintableClone(source: HTMLElement) {
       span.style.borderBottomWidth = computedStyle.borderBottomWidth;
       span.style.borderLeftWidth = computedStyle.borderLeftWidth;
       span.style.borderRadius = computedStyle.borderRadius;
-     
+      
       // Normalize background color
       const normalizedSpanBg = normalizeColor(computedStyle.backgroundColor, "backgroundColor");
       span.style.backgroundColor = normalizedSpanBg && !/(lab|oklab)\(/i.test(normalizedSpanBg)
@@ -656,15 +673,15 @@ function createPrintableClone(source: HTMLElement) {
       span.style.verticalAlign = computedStyle.verticalAlign;
       span.style.opacity = computedStyle.opacity;
       span.style.visibility = computedStyle.visibility;
-     
+      
       // Preserve classes for styling
       span.className = input.className;
-     
+      
       // For empty values, ensure proper spacing is maintained
       if (!value) {
         span.style.minHeight = computedStyle.minHeight || computedStyle.height || '1em';
       }
-     
+      
       // Replace input with span
       if (input.parentNode) {
         input.parentNode.replaceChild(span, input);
@@ -720,6 +737,7 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.overflowWrap = style.overflowWrap;
       clonedNode.style.wordBreak = style.wordBreak;
       // Preserve all layout properties with !important to ensure they're applied
+      // Preserve all layout properties with !important to ensure they're applied
       clonedNode.style.display = style.display;
       clonedNode.style.flexDirection = style.flexDirection;
       clonedNode.style.justifyContent = style.justifyContent;
@@ -731,10 +749,23 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.flexGrow = style.flexGrow;
       clonedNode.style.flexShrink = style.flexShrink;
       clonedNode.style.flexBasis = style.flexBasis;
+      clonedNode.style.alignContent = style.alignContent;
+      clonedNode.style.alignSelf = style.alignSelf;
+      clonedNode.style.flexWrap = style.flexWrap;
+      clonedNode.style.flex = style.flex;
+      clonedNode.style.flexGrow = style.flexGrow;
+      clonedNode.style.flexShrink = style.flexShrink;
+      clonedNode.style.flexBasis = style.flexBasis;
       clonedNode.style.gap = style.gap;
       clonedNode.style.rowGap = style.rowGap;
       clonedNode.style.columnGap = style.columnGap;
+      clonedNode.style.rowGap = style.rowGap;
+      clonedNode.style.columnGap = style.columnGap;
       clonedNode.style.padding = style.padding;
+      clonedNode.style.paddingTop = style.paddingTop;
+      clonedNode.style.paddingRight = style.paddingRight;
+      clonedNode.style.paddingBottom = style.paddingBottom;
+      clonedNode.style.paddingLeft = style.paddingLeft;
       clonedNode.style.paddingTop = style.paddingTop;
       clonedNode.style.paddingRight = style.paddingRight;
       clonedNode.style.paddingBottom = style.paddingBottom;
@@ -755,7 +786,7 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.gridRowEnd = style.gridRowEnd;
       clonedNode.style.placeItems = style.placeItems;
       clonedNode.style.placeContent = style.placeContent;
-     
+      
       const normalizedBorder = normalizeColor(style.border, "border");
       if (normalizedBorder && !/(lab|oklab)\(/i.test(normalizedBorder)) {
         clonedNode.style.border = normalizedBorder;
@@ -821,10 +852,10 @@ function createPrintableClone(source: HTMLElement) {
   };
 
   applyComputedStyles(source, clone);
- 
+  
   // Convert all input fields to static text elements for better PDF rendering
   convertInputsToText(clone);
- 
+  
   // Convert all LAB/OKLab colors in the clone before html2canvas processes it
   convertAllColorsInElement(clone);
 
@@ -844,12 +875,13 @@ function createPrintableClone(source: HTMLElement) {
   clone.style.opacity = "1";
   clone.style.visibility = "visible";
   clone.style.display = "block";
+  clone.style.display = "block";
   clone.classList.add("__pdf-clone");
- 
+  
   // Ensure all child elements are visible in the clone
   const ensureVisibility = (element: HTMLElement) => {
     const style = window.getComputedStyle(element);
-   
+    
     // Skip if element is intentionally hidden
     if (style.display === "none" && element.tagName !== 'SCRIPT' && element.tagName !== 'STYLE') {
       // For table rows and important elements, ensure they're visible
@@ -861,7 +893,7 @@ function createPrintableClone(source: HTMLElement) {
         return;
       }
     }
-   
+    
     if (style.visibility === "hidden") {
       element.style.visibility = "visible";
       element.style.setProperty('visibility', 'visible', 'important');
@@ -870,7 +902,7 @@ function createPrintableClone(source: HTMLElement) {
       element.style.opacity = "1";
       element.style.setProperty('opacity', '1', 'important');
     }
-   
+    
     // Ensure table rows are always visible
     if (element.tagName === 'TR') {
       element.style.display = 'table-row';
@@ -883,15 +915,15 @@ function createPrintableClone(source: HTMLElement) {
       element.style.height = 'auto';
       element.style.minHeight = 'auto';
     }
-   
+    
     // Special handling for discount rows - ALWAYS force visibility
     if (element.tagName === 'TR' && (element.classList.contains('discount-row') || element.getAttribute('data-discount-row') === 'true')) {
       // Check if discount row should be shown by checking for discount value in the content
       const discountCell = element.querySelector('td:last-child');
-      const hasDiscountValue = discountCell && discountCell.textContent &&
-                               discountCell.textContent.trim() !== '' &&
+      const hasDiscountValue = discountCell && discountCell.textContent && 
+                               discountCell.textContent.trim() !== '' && 
                                discountCell.textContent.trim() !== '-';
-     
+      
       // Force visibility if there's a discount value
       if (hasDiscountValue) {
         element.style.display = 'table-row';
@@ -906,7 +938,7 @@ function createPrintableClone(source: HTMLElement) {
         element.style.removeProperty('display'); // Remove any display:none
         element.style.removeProperty('visibility'); // Remove any hidden
         element.style.removeProperty('opacity'); // Remove any opacity 0
-       
+        
         // Also ensure all child elements are visible
         Array.from(element.children).forEach((child) => {
           if (child instanceof HTMLElement) {
@@ -922,7 +954,7 @@ function createPrintableClone(source: HTMLElement) {
             child.style.removeProperty('opacity');
           }
         });
-       
+        
         // Ensure nested divs are visible
         const innerDivs = element.querySelectorAll('div');
         innerDivs.forEach((div) => {
@@ -937,7 +969,7 @@ function createPrintableClone(source: HTMLElement) {
         });
       }
     }
-   
+    
     // Ensure table cells are visible
     if (element.tagName === 'TD' || element.tagName === 'TH') {
       element.style.display = 'table-cell';
@@ -947,7 +979,7 @@ function createPrintableClone(source: HTMLElement) {
       element.style.opacity = '1';
       element.style.setProperty('opacity', '1', 'important');
     }
-   
+    
     // Special handling for discount cards
     if (element.classList.contains('discount-card') || element.getAttribute('data-discount-card') === 'true') {
       // Check if discount card has content - look for the paragraph with discount amount
@@ -955,16 +987,16 @@ function createPrintableClone(source: HTMLElement) {
       const discountAmount = element.querySelector('p.text-3xl, p.mt-3, p[class*="text-3xl"], p[class*="mt-3"]') ||
                            Array.from(element.querySelectorAll('p')).find(p => {
                              const text = p.textContent?.trim() || '';
-                             return text !== '' && text !== '-' && !text.match(/^[\s₹,-]*$/) &&
-                                    (p.classList.contains('text-3xl') || p.classList.contains('mt-3') ||
+                             return text !== '' && text !== '-' && !text.match(/^[\s₹,-]*$/) && 
+                                    (p.classList.contains('text-3xl') || p.classList.contains('mt-3') || 
                                      p.style.fontSize?.includes('1.875rem') || p.style.fontSize?.includes('30px'));
                            });
-     
-      const hasContent = discountAmount && discountAmount.textContent &&
-                        discountAmount.textContent.trim() !== '' &&
+      
+      const hasContent = discountAmount && discountAmount.textContent && 
+                        discountAmount.textContent.trim() !== '' && 
                         discountAmount.textContent.trim() !== '-' &&
                         !discountAmount.textContent.trim().match(/^[\s₹,-]*$/);
-     
+      
       if (hasContent) {
         element.style.display = 'block';
         element.style.setProperty('display', 'block', 'important');
@@ -972,7 +1004,7 @@ function createPrintableClone(source: HTMLElement) {
         element.style.setProperty('visibility', 'visible', 'important');
         element.style.opacity = '1';
         element.style.setProperty('opacity', '1', 'important');
-       
+        
         // Ensure ALL child elements are visible - title (h4), amount (p.text-3xl), and description (p.mt-2)
         const children = element.querySelectorAll('*');
         children.forEach((child) => {
@@ -986,7 +1018,7 @@ function createPrintableClone(source: HTMLElement) {
               child.style.display = '';
               child.style.removeProperty('display');
             }
-           
+            
             // Ensure h4 title is visible (DISCOUNT APPLIED / TOTAL PAYABLE)
             if (child.tagName === 'H4') {
               child.style.display = 'block';
@@ -1014,7 +1046,7 @@ function createPrintableClone(source: HTMLElement) {
                 // Preserve default styling
               }
             }
-           
+            
             // Ensure discount amount paragraph is visible and has proper styling
             if (child === discountAmount || (child.tagName === 'P' && (child.classList.contains('text-3xl') || child.classList.contains('mt-3')))) {
               child.style.display = 'block';
@@ -1048,7 +1080,7 @@ function createPrintableClone(source: HTMLElement) {
                 child.style.fontWeight = '700';
               }
             }
-           
+            
             // Ensure description paragraph is visible (Subtracted from rooms total / After applying discount)
             if (child.tagName === 'P' && (child.classList.contains('mt-2') || child.classList.contains('text-xs'))) {
               child.style.display = 'block';
@@ -1078,7 +1110,7 @@ function createPrintableClone(source: HTMLElement) {
         element.style.setProperty('display', 'none', 'important');
       }
     }
-   
+    
     // Process children
     Array.from(element.children).forEach((child) => {
       if (child instanceof HTMLElement) {
@@ -1086,7 +1118,7 @@ function createPrintableClone(source: HTMLElement) {
       }
     });
   };
- 
+  
   ensureVisibility(clone);
 
   // Create a container to hold the clone off-screen but still accessible
@@ -1169,6 +1201,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
 
     const effectiveDiscountValue =
       discountAmountValue ?? discountValue ?? null;
+      discountAmountValue ?? discountValue ?? null;
 
     const calculatedTotalAfterDiscount =
       totalPayableValue != null
@@ -1208,14 +1241,14 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5"
                   />&amp;Family,
                 </div>
-                <div className="text-sm text-zinc-600 leading-[1.5rem] whitespace-nowrap m-0 text-right ml-10">
-                  <span>Issued on </span>
+                <div className="text-sm text-zinc-600 leading-[1.5rem] whitespace-nowrap m-0 ml-3 flex items-baseline justify-end">
+                  <span>Issued on:</span>
                   <MetaFieldInput
                     field="quoteDate"
                     value={metaProp.quoteDate}
                     placeholder="DD/MM/YYYY"
                     onChange={onMetaChange}
-                    className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5 pl-2px"
+                    className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5 ml-0.5"
                   />
                 </div>
               </div>
@@ -1229,7 +1262,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   value={metaProp.quoteNumber}
                   placeholder="QUOTE-####"
                   onChange={onMetaChange}
-                  className="text-lg font-semibold text-zinc-900"
+                  className="text-1xl font-semibold text-zinc-900"
                 />
               </div>
             </div>
@@ -1263,6 +1296,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                       {config?.label ?? field}
                     </span>
                     <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-0.5">
                     <MetaFieldInput
                       field={field}
                       value={fieldValue}
@@ -1281,9 +1315,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                         }
                         placeholder={subtitleConfig?.label ?? "Details"}
                         onChange={onMetaChange}
-                          className="text-xs text-zinc-500 break-words leading-tight"
+                        className="text-xs text-zinc-500 break-words leading-tight"
                       />
                     )}
+                    </div>
                     </div>
                   </div>
                 );
@@ -1337,13 +1372,13 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   </tr>
                 )}
                 {/* Always render discount row - use display to show/hide instead of conditional rendering */}
-                <tr
-                  className="border-t border-blue-200 bg-blue-50 font-semibold discount-row"
+                <tr 
+                  className="border-t border-blue-200 bg-blue-50 font-semibold discount-row" 
                   data-discount-row="true"
-                  style={{
+                  style={{ 
                     display: (() => {
                       const discountToShow = effectiveDiscountValue ?? discountAmountValue ?? null;
-                      const shouldShowDiscount = (discountToShow != null && discountToShow !== 0) ||
+                      const shouldShowDiscount = (discountToShow != null && discountToShow !== 0) || 
                                                (discountAmountValue != null && discountAmountValue !== 0);
                       return shouldShowDiscount && discountToShow != null ? 'table-row' : 'none';
                     })(),
@@ -1355,20 +1390,20 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     width: '100%'
                   }}
                 >
-                  <td
-                    className="px-4 py-3"
-                    colSpan={6}
-                    style={{
+                  <td 
+                    className="px-4 py-3" 
+                    colSpan={6} 
+                    style={{ 
                       display: 'table-cell',
                       visibility: 'visible',
                       opacity: '1',
                       width: 'auto'
                     }}
                   >
-                    <div
-                      className="flex justify-end uppercase tracking-wide text-blue-600"
-                      style={{
-                        display: 'flex',
+                    <div 
+                      className="flex justify-end uppercase tracking-wide text-blue-600" 
+                      style={{ 
+                        display: 'flex', 
                         justifyContent: 'flex-end',
                         visibility: 'visible',
                         opacity: '1',
@@ -1378,10 +1413,10 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                       Discount
                     </div>
                     </td>
-                  <td
-                    className="px-4 py-3 text-right text-blue-600 font-bold"
-                    style={{
-                      display: 'table-cell',
+                  <td 
+                    className="px-4 py-3 text-right text-blue-600 font-bold" 
+                    style={{ 
+                      display: 'table-cell', 
                       textAlign: 'right',
                       visibility: 'visible',
                       opacity: '1',
@@ -1415,14 +1450,14 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
             const discountToShow = effectiveDiscountValue ?? discountAmountValue ?? discountValue ?? null;
             const shouldShowDiscount = (discountToShow != null && discountToShow !== 0);
             const discountAmountText = discountToShow != null ? formatMoney(Math.abs(discountToShow)) : '';
-           
+            
             if (!shouldShowDiscount || discountToShow == null) {
               return null;
             }
-           
+            
             return (
-          <div
-            className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm discount-card"
+          <div 
+            className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm discount-card" 
             data-discount-card="true"
             style={{
                   display: 'block',
@@ -2161,20 +2196,20 @@ export default function Home() {
           await document.fonts.ready;
         }
         await new Promise((resolve) => setTimeout(resolve, 300));
-       
+        
         // Final aggressive pass to convert all LAB colors before html2canvas
         convertAllColorsInElement(target);
-       
+        
         // CRITICAL: Force all discount rows to be visible before PDF generation
         const discountRowsInClone = target.querySelectorAll('tr.discount-row, tr[data-discount-row="true"]');
         discountRowsInClone.forEach((row) => {
           if (row instanceof HTMLElement) {
             // Check if row has content (discount value)
             const lastCell = row.querySelector('td:last-child');
-            const hasContent = lastCell && lastCell.textContent &&
-                               lastCell.textContent.trim() !== '' &&
+            const hasContent = lastCell && lastCell.textContent && 
+                               lastCell.textContent.trim() !== '' && 
                                !lastCell.textContent.trim().match(/^[\s-]*$/);
-           
+            
             if (hasContent) {
               row.style.display = 'table-row';
               row.style.setProperty('display', 'table-row', 'important');
@@ -2184,7 +2219,7 @@ export default function Home() {
               row.style.setProperty('opacity', '1', 'important');
               row.style.position = 'static';
               row.style.height = 'auto';
-             
+              
               // Force all cells visible
               const cells = row.querySelectorAll('td, th');
               cells.forEach((cell) => {
@@ -2200,7 +2235,7 @@ export default function Home() {
             }
           }
         });
-       
+        
         // CRITICAL: Force all discount cards to be visible before PDF generation
         const discountCardsInClone = target.querySelectorAll('.discount-card, [data-discount-card="true"]');
         discountCardsInClone.forEach((card) => {
@@ -2215,7 +2250,7 @@ export default function Home() {
             card.style.position = 'relative';
             card.style.height = 'auto';
             card.style.width = 'auto';
-           
+            
             // Force ALL direct children and nested elements to be visible
             const allChildren = card.querySelectorAll('*');
             allChildren.forEach((child) => {
@@ -2229,7 +2264,7 @@ export default function Home() {
                   child.style.display = 'block';
                   child.style.setProperty('display', 'block', 'important');
                 }
-               
+                
                 // Special handling for h4 titles
                 if (child.tagName === 'H4') {
                   child.style.display = 'block';
@@ -2258,7 +2293,7 @@ export default function Home() {
                     child.style.textTransform = 'uppercase';
                   }
                 }
-               
+                
                 // Special handling for all paragraphs
                 if (child.tagName === 'P') {
                   child.style.display = 'block';
@@ -2295,7 +2330,7 @@ export default function Home() {
             });
           }
         });
-       
+        
         // Also ensure Total Payable card is visible
         const discountSection = target.querySelector('[data-discount-section="true"]');
         if (discountSection) {
@@ -2324,12 +2359,12 @@ export default function Home() {
             }
           });
         }
-       
+        
         // Force a style recalculation to ensure all styles are applied
         if (target.offsetHeight) {
           void target.offsetHeight; // Force reflow
         }
-       
+        
         // Ensure clone has proper dimensions
         if (target.offsetWidth === 0 || target.offsetHeight === 0) {
           throw new Error("Clone element has no dimensions");
@@ -2354,7 +2389,7 @@ export default function Home() {
             if (clonedElement instanceof HTMLElement) {
               // Use our comprehensive color conversion function
               convertAllColorsInElement(clonedElement);
-             
+              
               // Also convert all other elements
               const allElements = clonedDoc.querySelectorAll('*');
               allElements.forEach((el) => {
@@ -2362,23 +2397,23 @@ export default function Home() {
                   convertAllColorsInElement(el);
                 }
               });
-             
+              
               // Force style recalculation
               if (clonedDoc.body instanceof HTMLElement) {
                 convertAllColorsInElement(clonedDoc.body);
               }
-             
+              
               // CRITICAL: Explicitly ensure discount rows are visible - check for content first
               const discountRows = clonedDoc.querySelectorAll('tr.discount-row, tr[data-discount-row="true"]');
               discountRows.forEach((row) => {
                 if (row instanceof HTMLElement) {
                   // Check if row has discount value content
                   const lastCell = row.querySelector('td:last-child');
-                  const hasContent = lastCell && lastCell.textContent &&
-                                   lastCell.textContent.trim() !== '' &&
+                  const hasContent = lastCell && lastCell.textContent && 
+                                   lastCell.textContent.trim() !== '' && 
                                    lastCell.textContent.trim() !== '-' &&
                                    !lastCell.textContent.trim().match(/^[\s₹,-]*$/);
-                 
+                  
                   // Force visibility if content exists
                   if (hasContent) {
                     row.style.display = 'table-row';
@@ -2390,7 +2425,7 @@ export default function Home() {
                     row.style.position = 'static';
                     row.style.height = 'auto';
                     row.style.removeProperty('display'); // Remove display:none if present
-                   
+                    
                     // Ensure all cells are visible and preserve alignment
                     const cells = row.querySelectorAll('td, th');
                     cells.forEach((cell) => {
@@ -2413,7 +2448,7 @@ export default function Home() {
                         }
                       }
                     });
-                   
+                    
                     // Ensure nested flex divs maintain alignment
                     const innerDivs = row.querySelectorAll('div');
                     innerDivs.forEach((div) => {
@@ -2439,7 +2474,7 @@ export default function Home() {
                   }
                 }
               });
-             
+              
               // CRITICAL: Explicitly ensure discount cards are visible
               const discountCards = clonedDoc.querySelectorAll('.discount-card, [data-discount-card="true"]');
               discountCards.forEach((card) => {
@@ -2454,7 +2489,7 @@ export default function Home() {
                   card.style.position = 'relative';
                   card.style.height = 'auto';
                   card.style.width = 'auto';
-                 
+                  
                   // Force ALL direct children and nested elements to be visible
                   const allChildren = card.querySelectorAll('*');
                   allChildren.forEach((child) => {
@@ -2468,7 +2503,7 @@ export default function Home() {
                         child.style.display = 'block';
                         child.style.setProperty('display', 'block', 'important');
                       }
-                     
+                      
                       // Special handling for h4 titles
                       if (child.tagName === 'H4') {
                         child.style.display = 'block';
@@ -2505,7 +2540,7 @@ export default function Home() {
                           child.style.textTransform = 'uppercase';
                         }
                       }
-                     
+                      
                       // Special handling for all paragraphs (amount and description)
                       if (child.tagName === 'P') {
                         child.style.display = 'block';
@@ -2551,7 +2586,7 @@ export default function Home() {
                   });
                 }
               });
-             
+              
               // Also ensure Total Payable card is visible and styled correctly (it's in the same section)
               const discountSection = clonedDoc.querySelector('[data-discount-section="true"]');
               if (discountSection) {
@@ -2559,10 +2594,10 @@ export default function Home() {
                 allCards.forEach((card) => {
                   if (card instanceof HTMLElement) {
                     // Check if this is the total payable card (has emerald background)
-                    const isTotalPayable = card.classList.contains('bg-emerald-50') ||
+                    const isTotalPayable = card.classList.contains('bg-emerald-50') || 
                                          card.style.backgroundColor?.includes('emerald') ||
                                          !card.classList.contains('discount-card') && !card.hasAttribute('data-discount-card');
-                   
+                    
                     card.style.display = 'block';
                     card.style.setProperty('display', 'block', 'important');
                     card.style.visibility = 'visible';
@@ -2581,7 +2616,7 @@ export default function Home() {
                           child.style.display = 'block';
                           child.style.setProperty('display', 'block', 'important');
                         }
-                       
+                        
                         // Apply dark green color to total payable card text
                         if (isTotalPayable) {
                           try {
@@ -2605,16 +2640,16 @@ export default function Home() {
                   }
                 });
               }
-             
+              
               // Ensure font styles are preserved
               try {
-              const computedStyle = getComputedStyle(target);
-              clonedElement.style.fontFamily = computedStyle.fontFamily;
-              clonedElement.style.fontSize = computedStyle.fontSize;
-              clonedElement.style.lineHeight = computedStyle.lineHeight;
-              clonedElement.style.fontWeight = computedStyle.fontWeight;
-              // Force reflow to ensure styles are applied
-              clonedElement.offsetHeight;
+                const computedStyle = getComputedStyle(target);
+                clonedElement.style.fontFamily = computedStyle.fontFamily;
+                clonedElement.style.fontSize = computedStyle.fontSize;
+                clonedElement.style.lineHeight = computedStyle.lineHeight;
+                clonedElement.style.fontWeight = computedStyle.fontWeight;
+                // Force reflow to ensure styles are applied
+                clonedElement.offsetHeight;
               } catch (error) {
                 console.warn("Error setting font styles:", error);
               }
@@ -2647,230 +2682,71 @@ export default function Home() {
           removeContainer: true,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
-            // Convert all LAB/OKLab colors in the cloned document using comprehensive function
+            // Convert all LAB/OKLab colors in the cloned document
+            const convertAllColors = (el: HTMLElement) => {
+              try {
+                const elStyle = window.getComputedStyle(el);
+                
+                // Convert color
+                const color = normalizeColor(elStyle.color, "color");
+                if (color && !/(lab|oklab)\(/i.test(color)) {
+                  el.style.color = color;
+                } else {
+                  el.style.color = "black";
+                }
+                
+                // Convert backgroundColor
+                const bgColor = normalizeColor(elStyle.backgroundColor, "backgroundColor");
+                if (bgColor && !/(lab|oklab)\(/i.test(bgColor)) {
+                  el.style.backgroundColor = bgColor;
+                } else {
+                  el.style.backgroundColor = "white";
+                }
+                
+                // Convert borderColor
+                const borderColor = normalizeColor(elStyle.borderColor, "borderColor");
+                if (borderColor && !/(lab|oklab)\(/i.test(borderColor)) {
+                  el.style.borderColor = borderColor;
+                }
+                
+                // Convert other color properties
+                const textShadow = normalizeColor(elStyle.textShadow, "textShadow");
+                if (textShadow && !/(lab|oklab)\(/i.test(textShadow)) {
+                  el.style.textShadow = textShadow;
+                }
+                
+                const boxShadow = normalizeColor(elStyle.boxShadow, "boxShadow");
+                if (boxShadow && !/(lab|oklab)\(/i.test(boxShadow)) {
+                  el.style.boxShadow = boxShadow;
+                }
+              } catch (error) {
+                console.warn("Error converting colors:", error);
+              }
+            };
+            
+            // Convert colors for all elements
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                convertAllColors(el);
+              }
+            });
+            
+            // Also convert for body
+            if (clonedDoc.body instanceof HTMLElement) {
+              convertAllColors(clonedDoc.body);
+            }
+            
             const clonedElement = clonedDoc.querySelector('.__pdf-clone') || clonedDoc.body;
             if (clonedElement instanceof HTMLElement) {
-              // Use our comprehensive color conversion function
-              convertAllColorsInElement(clonedElement);
-             
-              // Also convert all other elements
-              const allElements = clonedDoc.querySelectorAll('*');
-              allElements.forEach((el) => {
-                if (el instanceof HTMLElement && el !== clonedElement) {
-                  convertAllColorsInElement(el);
-                }
-              });
-             
-              // Ensure body is also converted
-              if (clonedDoc.body instanceof HTMLElement && clonedDoc.body !== clonedElement) {
-                convertAllColorsInElement(clonedDoc.body);
-              }
-             
-              // CRITICAL: Explicitly ensure discount rows are visible - check for content first
-              const discountRows = clonedDoc.querySelectorAll('tr.discount-row, tr[data-discount-row="true"]');
-              discountRows.forEach((row) => {
-                if (row instanceof HTMLElement) {
-                  // Check if row has discount value content
-                  const lastCell = row.querySelector('td:last-child');
-                  const hasContent = lastCell && lastCell.textContent &&
-                                   lastCell.textContent.trim() !== '' &&
-                                   lastCell.textContent.trim() !== '-' &&
-                                   !lastCell.textContent.trim().match(/^[\s₹,-]*$/);
-                 
-                  // Force visibility if content exists
-                  if (hasContent) {
-                    row.style.display = 'table-row';
-                    row.style.setProperty('display', 'table-row', 'important');
-                    row.style.visibility = 'visible';
-                    row.style.setProperty('visibility', 'visible', 'important');
-                    row.style.opacity = '1';
-                    row.style.setProperty('opacity', '1', 'important');
-                    row.style.position = 'static';
-                    row.style.height = 'auto';
-                    row.style.removeProperty('display'); // Remove display:none if present
-                   
-                    // Ensure all cells are visible and preserve alignment
-                    const cells = row.querySelectorAll('td, th');
-                    cells.forEach((cell) => {
-                      if (cell instanceof HTMLElement) {
-                        cell.style.display = 'table-cell';
-                        cell.style.setProperty('display', 'table-cell', 'important');
-                        cell.style.visibility = 'visible';
-                        cell.style.setProperty('visibility', 'visible', 'important');
-                        cell.style.opacity = '1';
-                        cell.style.setProperty('opacity', '1', 'important');
-                        // Preserve text alignment from computed styles
-                        try {
-                          const computedCellStyle = window.getComputedStyle(cell);
-                          if (computedCellStyle.textAlign) {
-                            cell.style.textAlign = computedCellStyle.textAlign;
-                            cell.style.setProperty('text-align', computedCellStyle.textAlign, 'important');
-                          }
-                        } catch (e) {
-                          // Ignore errors
-                        }
-                      }
-                    });
-                   
-                    // Ensure nested flex divs maintain alignment
-                    const innerDivs = row.querySelectorAll('div');
-                    innerDivs.forEach((div) => {
-                      if (div instanceof HTMLElement) {
-                        div.style.display = 'flex';
-                        div.style.setProperty('display', 'flex', 'important');
-                        try {
-                          const computedDivStyle = window.getComputedStyle(div);
-                          if (computedDivStyle.justifyContent) {
-                            div.style.justifyContent = computedDivStyle.justifyContent;
-                            div.style.setProperty('justify-content', computedDivStyle.justifyContent, 'important');
-                          }
-                          if (computedDivStyle.alignItems) {
-                            div.style.alignItems = computedDivStyle.alignItems;
-                            div.style.setProperty('align-items', computedDivStyle.alignItems, 'important');
-                          }
-                        } catch (e) {
-                          // Ignore errors, use defaults
-                          div.style.justifyContent = 'flex-end';
-                        }
-                      }
-                    });
-                  }
-                }
-              });
-             
-              // CRITICAL: Explicitly ensure discount cards are visible (fallback callback)
-              const discountCards = clonedDoc.querySelectorAll('.discount-card, [data-discount-card="true"]');
-              discountCards.forEach((card) => {
-                if (card instanceof HTMLElement) {
-                  // Always show the card if it exists
-                  card.style.display = 'block';
-                  card.style.setProperty('display', 'block', 'important');
-                  card.style.visibility = 'visible';
-                  card.style.setProperty('visibility', 'visible', 'important');
-                  card.style.opacity = '1';
-                  card.style.setProperty('opacity', '1', 'important');
-                  card.style.position = 'relative';
-                  card.style.height = 'auto';
-                  card.style.width = 'auto';
-                 
-                  // Force ALL direct children and nested elements to be visible
-                  const allChildren = card.querySelectorAll('*');
-                  allChildren.forEach((child) => {
-                    if (child instanceof HTMLElement) {
-                      // Force visibility on ALL elements
-                      child.style.visibility = 'visible';
-                      child.style.setProperty('visibility', 'visible', 'important');
-                      child.style.opacity = '1';
-                      child.style.setProperty('opacity', '1', 'important');
-                      if (child.style.display === 'none' || child.style.display === '') {
-                        child.style.display = 'block';
-                        child.style.setProperty('display', 'block', 'important');
-                      }
-                     
-                      // Special handling for h4 titles
-                      if (child.tagName === 'H4') {
-                        child.style.display = 'block';
-                        child.style.setProperty('display', 'block', 'important');
-                        child.style.visibility = 'visible';
-                        child.style.setProperty('visibility', 'visible', 'important');
-                        child.style.opacity = '1';
-                        child.style.setProperty('opacity', '1', 'important');
-                        try {
-                          const computedStyle = window.getComputedStyle(child);
-                          let color = computedStyle.color;
-                          if (color && (color.includes('rgba') || color.includes('rgb'))) {
-                            child.style.color = color;
-                            child.style.setProperty('color', color, 'important');
-                          } else {
-                            child.style.color = '#1e40af';
-                            child.style.setProperty('color', '#1e40af', 'important');
-                          }
-                          if (computedStyle.fontSize) child.style.fontSize = computedStyle.fontSize;
-                          if (computedStyle.fontWeight) child.style.fontWeight = computedStyle.fontWeight;
-                          if (computedStyle.textTransform) child.style.textTransform = computedStyle.textTransform;
-                        } catch (e) {
-                          child.style.color = '#1e40af';
-                          child.style.fontSize = '0.75rem';
-                          child.style.fontWeight = '600';
-                          child.style.textTransform = 'uppercase';
-                        }
-                      }
-                     
-                      // Special handling for all paragraphs
-                      if (child.tagName === 'P') {
-                        child.style.display = 'block';
-                        child.style.setProperty('display', 'block', 'important');
-                        child.style.visibility = 'visible';
-                        child.style.setProperty('visibility', 'visible', 'important');
-                        child.style.opacity = '1';
-                        child.style.setProperty('opacity', '1', 'important');
-                        try {
-                          const computedStyle = window.getComputedStyle(child);
-                          let color = computedStyle.color;
-                          if (color && (color.includes('rgba') || color.includes('rgb'))) {
-                            child.style.color = color;
-                            child.style.setProperty('color', color, 'important');
-                          } else {
-                            child.style.color = '#1e40af';
-                            child.style.setProperty('color', '#1e40af', 'important');
-                          }
-                          if (computedStyle.fontSize) child.style.fontSize = computedStyle.fontSize;
-                          if (computedStyle.fontWeight) child.style.fontWeight = computedStyle.fontWeight;
-                        } catch (e) {
-                          const text = child.textContent?.trim() || '';
-                          if (text.includes('₹') && text.length > 5) {
-                            child.style.color = '#1e40af';
-                            child.style.fontSize = '1.875rem';
-                            child.style.fontWeight = '700';
-                          } else {
-                            child.style.color = '#1e40af';
-                            child.style.fontSize = '0.75rem';
-                          }
-                        }
-                      }
-                    }
-                  });
-                }
-              });
-             
-              // Also ensure Total Payable card is visible
-              const discountSection = clonedDoc.querySelector('[data-discount-section="true"]');
-              if (discountSection) {
-                const allCards = discountSection.querySelectorAll('div[class*="rounded-3xl"]');
-                allCards.forEach((card) => {
-                  if (card instanceof HTMLElement) {
-                    card.style.display = 'block';
-                    card.style.setProperty('display', 'block', 'important');
-                    card.style.visibility = 'visible';
-                    card.style.setProperty('visibility', 'visible', 'important');
-                    card.style.opacity = '1';
-                    card.style.setProperty('opacity', '1', 'important');
-                    const children = card.querySelectorAll('*');
-                    children.forEach((child) => {
-                      if (child instanceof HTMLElement) {
-                        child.style.visibility = 'visible';
-                        child.style.setProperty('visibility', 'visible', 'important');
-                        child.style.opacity = '1';
-                        child.style.setProperty('opacity', '1', 'important');
-                        if (child.style.display === 'none') {
-                          child.style.display = 'block';
-                          child.style.setProperty('display', 'block', 'important');
-                        }
-                      }
-                    });
-                  }
-                });
-              }
-             
-              // Ensure font styles are preserved
               try {
-              const computedStyle = getComputedStyle(element);
-              clonedElement.style.fontFamily = computedStyle.fontFamily;
-              clonedElement.style.fontSize = computedStyle.fontSize;
-              clonedElement.style.lineHeight = computedStyle.lineHeight;
-              clonedElement.style.fontWeight = computedStyle.fontWeight;
-              // Force reflow to ensure styles are applied
-              clonedElement.offsetHeight;
+                const computedStyle = getComputedStyle(element);
+                clonedElement.style.fontFamily = computedStyle.fontFamily;
+                clonedElement.style.fontSize = computedStyle.fontSize;
+                clonedElement.style.lineHeight = computedStyle.lineHeight;
+                clonedElement.style.fontWeight = computedStyle.fontWeight;
+                // Force reflow to ensure styles are applied
+                clonedElement.offsetHeight;
               } catch (error) {
                 console.warn("Error setting font styles:", error);
               }
