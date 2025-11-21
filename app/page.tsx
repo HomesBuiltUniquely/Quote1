@@ -1224,6 +1224,78 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
     const paymentTotal = paymentBase;
 
     return (
+      <>
+        <style>{`
+          /* Page break prevention for PDF generation */
+          /* Prevent page breaks inside major sections */
+          section {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep type cards (room type containers) together - target by multiple class combinations */
+          div[class*="rounded-2xl"][class*="border"][class*="bg-zinc-50"],
+          div[class*="rounded-2xl"][class*="border"][class*="bg-white"][class*="shadow-sm"] {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep tables together - prevent splitting */
+          table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep table rows together when possible */
+          thead tr,
+          tbody tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep headings with their following content blocks */
+          h1, h2, h3, h4, h5 {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          
+          /* Keep room headers with their content */
+          div[class*="border-b"][class*="border-zinc-200"] {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          
+          /* Keep table containers together */
+          div[class*="overflow-hidden"][class*="rounded-2xl"][class*="border"] {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep grid sections (materials/pricing grids) together */
+          div[class*="grid"][class*="gap-4"] {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Prevent breaks in project details grid */
+          div[class*="grid"][class*="rounded-3xl"][class*="border"] {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          
+          /* Keep material and pricing blocks with their headers */
+          div[class*="space-y-2"] > h5,
+          div[class*="space-y-3"] > h3 {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          
+          /* Keep content blocks with their parent sections */
+          div[class*="space-y-6"] {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+        `}</style>
       <div ref={ref} className="space-y-10 p-8">
       {metaProp && (
         <section className="space-y-6">
@@ -1919,6 +1991,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
         </p>
       </section>
     </div>
+    </>
     );
   }
 );
