@@ -155,82 +155,148 @@ function clamp(value: number, min = 0, max = 1) {
 }
 
 function labToRgb(lab: string) {
-  const match = lab
-    .replace(/\s+/g, " ")
-    .match(/^lab\(([^)]+)\)/i);
-  if (!match) {
+  try {
+    const match = lab
+      .replace(/\s+/g, " ")
+      .match(/^lab\(([^)]+)\)/i);
+    if (!match) {
+      return lab;
+    }
+
+    const parts = match[1]
+      .split(/[,\s]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    if (parts.length < 3) {
+      return lab;
+    }
+
+    const alphaIndex = parts.findIndex((token) => token.includes("/"));
+    let alpha = 1;
+
+    if (alphaIndex !== -1) {
+      const [value, alphaToken] = parts[alphaIndex].split("/").map((token) => token.trim());
+      parts[alphaIndex] = value;
+      alpha = Number(alphaToken);
+      if (Number.isNaN(alpha)) {
+        alpha = 1;
+      }
+    } else if (parts.length >= 4) {
+      alpha = Number(parts[3]);
+      if (Number.isNaN(alpha)) {
+        alpha = 1;
+      }
+    }
+
+    const L = parseFloat(parts[0]);
+    const a = parseFloat(parts[1]);
+    const b = parseFloat(parts[2]);
+
+    // Validate parsed values
+    if (Number.isNaN(L) || Number.isNaN(a) || Number.isNaN(b)) {
+      return lab; // Return original if parsing fails
+    }
+
+    const y = (L + 16) / 116;
+    const x = a / 500 + y;
+    const z = y - b / 200;
+
+    const f = (t: number) => {
+      if (Number.isNaN(t) || !Number.isFinite(t)) {
+        return 0;
+      }
+      return t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787;
+    };
+
+    const Xn = 0.95047;
+    const Yn = 1.0;
+    const Zn = 1.08883;
+
+    const X = Xn * f(x);
+    const Y = Yn * f(y);
+    const Z = Zn * f(z);
+
+    let r = X * 3.2406 + Y * -1.5372 + Z * -0.4986;
+    let g = X * -0.9689 + Y * 1.8758 + Z * 0.0415;
+    let bl = X * 0.0557 + Y * -0.204 + Z * 1.057;
+
+    const gamma = (c: number) => {
+      if (Number.isNaN(c) || !Number.isFinite(c)) {
+        return 0;
+      }
+      return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+    };
+
+    r = clamp(gamma(r));
+    g = clamp(gamma(g));
+    bl = clamp(gamma(bl));
+
+    const to255 = (c: number) => Math.round(clamp(c) * 255);
+
+    // Validate final RGB values
+    if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(bl)) {
+      return lab; // Return original if conversion produces invalid values
+    }
+
+    if (alpha < 1) {
+      return `rgba(${to255(r)}, ${to255(g)}, ${to255(bl)}, ${clamp(alpha)})`;
+    }
+
+    return `rgb(${to255(r)}, ${to255(g)}, ${to255(bl)})`;
+  } catch (error) {
+    // If any error occurs, return the original value or a safe fallback
+    console.warn("Error converting LAB color:", lab, error);
     return lab;
   }
-
-  const parts = match[1]
-    .split(/[,\s]+/)
-    .map((token) => token.trim())
-    .filter(Boolean);
-
-  if (parts.length < 3) {
-    return lab;
-  }
-
-  const alphaIndex = parts.findIndex((token) => token.includes("/"));
-  let alpha = 1;
-
-  if (alphaIndex !== -1) {
-    const [value, alphaToken] = parts[alphaIndex].split("/").map((token) => token.trim());
-    parts[alphaIndex] = value;
-    alpha = Number(alphaToken);
-    if (Number.isNaN(alpha)) {
-      alpha = 1;
-    }
-  } else if (parts.length >= 4) {
-    alpha = Number(parts[3]);
-    if (Number.isNaN(alpha)) {
-      alpha = 1;
-    }
-  }
-
-  const L = parseFloat(parts[0]);
-  const a = parseFloat(parts[1]);
-  const b = parseFloat(parts[2]);
-
-  const y = (L + 16) / 116;
-  const x = a / 500 + y;
-  const z = y - b / 200;
-
-  const f = (t: number) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787);
-
-  const Xn = 0.95047;
-  const Yn = 1.0;
-  const Zn = 1.08883;
-
-  const X = Xn * f(x);
-  const Y = Yn * f(y);
-  const Z = Zn * f(z);
-
-  let r = X * 3.2406 + Y * -1.5372 + Z * -0.4986;
-  let g = X * -0.9689 + Y * 1.8758 + Z * 0.0415;
-  let bl = X * 0.0557 + Y * -0.204 + Z * 1.057;
-
-  const gamma = (c: number) =>
-    c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
-
-  r = clamp(gamma(r));
-  g = clamp(gamma(g));
-  bl = clamp(gamma(bl));
-
-  const to255 = (c: number) => Math.round(clamp(c) * 255);
-
-  if (alpha < 1) {
-    return `rgba(${to255(r)}, ${to255(g)}, ${to255(bl)}, ${clamp(alpha)})`;
-  }
-
-  return `rgb(${to255(r)}, ${to255(g)}, ${to255(bl)})`;
 }
 
-function normalizeColor(value: string) {
+function normalizeColor(value: string, property?: string) {
   if (!value || typeof value !== "string") {
     return value;
   }
-  return value.replace(/lab\([^)]*\)/gi, (match) => labToRgb(match));
+  
+  // Skip if it's not a LAB color
+  if (!/lab\(/i.test(value)) {
+    return value;
+  }
+  
+  try {
+    return value.replace(/lab\([^)]*\)/gi, (match) => {
+      try {
+        const converted = labToRgb(match);
+        // If conversion failed (returned original), use a safe fallback
+        if (converted === match) {
+          // Use appropriate fallback based on property type
+          if (property === "backgroundColor" || property === "background") {
+            return "white";
+          } else if (property === "color") {
+            return "black";
+          } else if (property === "borderColor" || property === "border") {
+            return "currentColor";
+          }
+          return "transparent";
+        }
+        return converted;
+      } catch (error) {
+        console.warn("Error normalizing LAB color:", match, error);
+        // Use safe fallback based on property
+        if (property === "backgroundColor" || property === "background") {
+          return "white";
+        } else if (property === "color") {
+          return "black";
+        }
+        return "transparent";
+      }
+    });
+  } catch (error) {
+    console.warn("Error in normalizeColor:", value, error);
+    // Return safe fallback
+    if (property === "backgroundColor" || property === "background") {
+      return "white";
+    }
+    return value;
+  }
 }
 
 function createPrintableClone(source: HTMLElement) {
@@ -241,40 +307,99 @@ function createPrintableClone(source: HTMLElement) {
       return;
     }
 
-    const style = window.getComputedStyle(originalNode);
-    clonedNode.style.color = normalizeColor(style.color);
-    clonedNode.style.backgroundColor = normalizeColor(style.backgroundColor);
-    clonedNode.style.font = style.font;
-    clonedNode.style.fontSize = style.fontSize;
-    clonedNode.style.fontFamily = style.fontFamily;
-    clonedNode.style.fontWeight = style.fontWeight;
-    clonedNode.style.fontStyle = style.fontStyle;
-    clonedNode.style.fontVariant = style.fontVariant;
-    clonedNode.style.lineHeight = style.lineHeight;
-    clonedNode.style.letterSpacing = style.letterSpacing;
-    clonedNode.style.textTransform = style.textTransform;
-    clonedNode.style.textDecoration = style.textDecoration;
-    clonedNode.style.textIndent = style.textIndent;
-    clonedNode.style.textAlign = style.textAlign;
-    clonedNode.style.textShadow = normalizeColor(style.textShadow);
-    clonedNode.style.whiteSpace = style.whiteSpace;
-    clonedNode.style.wordWrap = style.wordWrap;
-    clonedNode.style.overflowWrap = style.overflowWrap;
-    clonedNode.style.wordBreak = style.wordBreak;
-    clonedNode.style.display = style.display;
-    clonedNode.style.flexDirection = style.flexDirection;
-    clonedNode.style.justifyContent = style.justifyContent;
-    clonedNode.style.alignItems = style.alignItems;
-    clonedNode.style.gap = style.gap;
-    clonedNode.style.padding = style.padding;
-    clonedNode.style.margin = style.margin;
-    clonedNode.style.border = normalizeColor(style.border);
-    clonedNode.style.borderColor = normalizeColor(style.borderColor);
-    clonedNode.style.borderWidth = style.borderWidth;
-    clonedNode.style.borderStyle = style.borderStyle;
-    clonedNode.style.outline = normalizeColor(style.outline);
-    clonedNode.style.borderRadius = style.borderRadius;
-    clonedNode.style.boxShadow = normalizeColor(style.boxShadow);
+    let style: CSSStyleDeclaration;
+    try {
+      style = window.getComputedStyle(originalNode);
+    } catch (error) {
+      console.warn("Error getting computed style:", error);
+      return; // Skip this node if we can't get its styles
+    }
+    try {
+      const normalizedColor = normalizeColor(style.color, "color");
+      if (normalizedColor && !normalizedColor.includes("lab(")) {
+        clonedNode.style.color = normalizedColor;
+      } else {
+        clonedNode.style.color = "black"; // Safe fallback
+      }
+      
+      const normalizedBg = normalizeColor(style.backgroundColor, "backgroundColor");
+      if (normalizedBg && !normalizedBg.includes("lab(")) {
+        clonedNode.style.backgroundColor = normalizedBg;
+      } else {
+        clonedNode.style.backgroundColor = "white"; // Safe fallback
+      }
+      clonedNode.style.font = style.font;
+      clonedNode.style.fontSize = style.fontSize;
+      clonedNode.style.fontFamily = style.fontFamily;
+      clonedNode.style.fontWeight = style.fontWeight;
+      clonedNode.style.fontStyle = style.fontStyle;
+      clonedNode.style.fontVariant = style.fontVariant;
+      clonedNode.style.lineHeight = style.lineHeight;
+      clonedNode.style.letterSpacing = style.letterSpacing;
+      clonedNode.style.textTransform = style.textTransform;
+      clonedNode.style.textDecoration = style.textDecoration;
+      clonedNode.style.textIndent = style.textIndent;
+      clonedNode.style.textAlign = style.textAlign;
+      const normalizedTextShadow = normalizeColor(style.textShadow, "textShadow");
+      if (normalizedTextShadow && !normalizedTextShadow.includes("lab(")) {
+        clonedNode.style.textShadow = normalizedTextShadow;
+      }
+      
+      clonedNode.style.whiteSpace = style.whiteSpace;
+      clonedNode.style.wordWrap = style.wordWrap;
+      clonedNode.style.overflowWrap = style.overflowWrap;
+      clonedNode.style.wordBreak = style.wordBreak;
+      clonedNode.style.display = style.display;
+      clonedNode.style.flexDirection = style.flexDirection;
+      clonedNode.style.justifyContent = style.justifyContent;
+      clonedNode.style.alignItems = style.alignItems;
+      clonedNode.style.gap = style.gap;
+      clonedNode.style.padding = style.padding;
+      clonedNode.style.margin = style.margin;
+      
+      const normalizedBorder = normalizeColor(style.border, "border");
+      if (normalizedBorder && !normalizedBorder.includes("lab(")) {
+        clonedNode.style.border = normalizedBorder;
+      } else {
+        clonedNode.style.border = style.border || "none";
+      }
+      
+      const normalizedBorderColor = normalizeColor(style.borderColor, "borderColor");
+      if (normalizedBorderColor && !normalizedBorderColor.includes("lab(")) {
+        clonedNode.style.borderColor = normalizedBorderColor;
+      } else {
+        clonedNode.style.borderColor = style.borderColor || "currentColor";
+      }
+      
+      clonedNode.style.borderWidth = style.borderWidth;
+      clonedNode.style.borderStyle = style.borderStyle;
+      
+      const normalizedOutline = normalizeColor(style.outline, "outline");
+      if (normalizedOutline && !normalizedOutline.includes("lab(")) {
+        clonedNode.style.outline = normalizedOutline;
+      } else {
+        clonedNode.style.outline = style.outline || "none";
+      }
+      
+      clonedNode.style.borderRadius = style.borderRadius;
+      
+      const normalizedBoxShadow = normalizeColor(style.boxShadow, "boxShadow");
+      if (normalizedBoxShadow && !normalizedBoxShadow.includes("lab(")) {
+        clonedNode.style.boxShadow = normalizedBoxShadow;
+      } else {
+        clonedNode.style.boxShadow = style.boxShadow || "none";
+      }
+    } catch (error) {
+      console.warn("Error applying computed styles:", error);
+      // Set safe fallback colors to prevent LAB color errors
+      try {
+        clonedNode.style.color = "black";
+        clonedNode.style.backgroundColor = "white";
+        clonedNode.style.borderColor = "currentColor";
+      } catch (fallbackError) {
+        console.warn("Error setting fallback colors:", fallbackError);
+      }
+    }
     clonedNode.style.maxWidth = style.maxWidth;
     clonedNode.style.minWidth = style.minWidth;
     clonedNode.style.width = style.width;
