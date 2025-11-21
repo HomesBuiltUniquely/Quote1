@@ -1208,14 +1208,14 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5"
                   />&amp;Family,
                 </div>
-                <div className="text-sm text-zinc-600 leading-[1.5rem] whitespace-nowrap m-0 text-right">
-                  <span>Issued on </span>
+                <div className="text-sm text-zinc-600 leading-[1.5rem] whitespace-nowrap m-0 ml-3 flex items-baseline justify-end">
+                  <span>Issued on:</span>
                   <MetaFieldInput
                     field="quoteDate"
                     value={metaProp.quoteDate}
                     placeholder="DD/MM/YYYY"
                     onChange={onMetaChange}
-                    className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5 pl-2px"
+                    className="inline-block w-auto border-b border-dotted border-zinc-400 pb-0.5 ml-0.5"
                   />
                 </div>
               </div>
@@ -1229,7 +1229,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   value={metaProp.quoteNumber}
                   placeholder="QUOTE-####"
                   onChange={onMetaChange}
-                  className="text-lg font-semibold text-zinc-900"
+                  className="text-1xl font-semibold text-zinc-900"
                 />
               </div>
             </div>
