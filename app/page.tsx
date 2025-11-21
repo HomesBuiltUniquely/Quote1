@@ -251,23 +251,141 @@ function labToRgb(lab: string) {
   }
 }
 
+function oklabToRgb(oklab: string) {
+  try {
+    const match = oklab
+      .replace(/\s+/g, " ")
+      .match(/^oklab\(([^)]+)\)/i);
+    if (!match) {
+      return oklab;
+    }
+
+    const parts = match[1]
+      .split(/[,\s]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    if (parts.length < 3) {
+      return oklab;
+    }
+
+    const alphaIndex = parts.findIndex((token) => token.includes("/"));
+    let alpha = 1;
+
+    if (alphaIndex !== -1) {
+      const [value, alphaToken] = parts[alphaIndex].split("/").map((token) => token.trim());
+      parts[alphaIndex] = value;
+      alpha = Number(alphaToken);
+      if (Number.isNaN(alpha)) {
+        alpha = 1;
+      }
+    } else if (parts.length >= 4) {
+      alpha = Number(parts[3]);
+      if (Number.isNaN(alpha)) {
+        alpha = 1;
+      }
+    }
+
+    const L = parseFloat(parts[0]);
+    const a = parseFloat(parts[1]);
+    const b = parseFloat(parts[2]);
+
+    // Validate parsed values
+    if (Number.isNaN(L) || Number.isNaN(a) || Number.isNaN(b)) {
+      return oklab;
+    }
+
+    // OKLab to linear RGB conversion
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+    const l = l_ ** 3;
+    const m = m_ ** 3;
+    const s = s_ ** 3;
+
+    let r = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    let g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    let bl = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+    // Apply gamma correction
+    const gamma = (c: number) => {
+      if (Number.isNaN(c) || !Number.isFinite(c)) {
+        return 0;
+      }
+      const abs = Math.abs(c);
+      if (abs > 0.0031308) {
+        return (c > 0 ? 1 : -1) * (1.055 * Math.pow(abs, 1.0 / 2.4) - 0.055);
+      }
+      return 12.92 * c;
+    };
+
+    r = clamp(gamma(r));
+    g = clamp(gamma(g));
+    bl = clamp(gamma(bl));
+
+    const to255 = (c: number) => Math.round(clamp(c) * 255);
+
+    if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(bl)) {
+      return oklab;
+    }
+
+    if (alpha < 1) {
+      return `rgba(${to255(r)}, ${to255(g)}, ${to255(bl)}, ${clamp(alpha)})`;
+    }
+
+    return `rgb(${to255(r)}, ${to255(g)}, ${to255(bl)})`;
+  } catch (error) {
+    console.warn("Error converting OKLab color:", oklab, error);
+    return oklab;
+  }
+}
+
 function normalizeColor(value: string, property?: string) {
   if (!value || typeof value !== "string") {
     return value;
   }
   
-  // Skip if it's not a LAB color
-  if (!/lab\(/i.test(value)) {
+  // Check if it contains any unsupported color functions
+  const hasUnsupportedColor = /(lab|oklab)\(/i.test(value);
+  if (!hasUnsupportedColor) {
     return value;
   }
   
   try {
-    return value.replace(/lab\([^)]*\)/gi, (match) => {
+    // Convert oklab colors first
+    let normalized = value.replace(/oklab\([^)]*\)/gi, (match) => {
+      try {
+        const converted = oklabToRgb(match);
+        if (converted === match) {
+          // Conversion failed, use fallback
+          if (property === "backgroundColor" || property === "background") {
+            return "white";
+          } else if (property === "color") {
+            return "black";
+          } else if (property === "borderColor" || property === "border") {
+            return "currentColor";
+          }
+          return "transparent";
+        }
+        return converted;
+      } catch (error) {
+        console.warn("Error normalizing OKLab color:", match, error);
+        if (property === "backgroundColor" || property === "background") {
+          return "white";
+        } else if (property === "color") {
+          return "black";
+        }
+        return "transparent";
+      }
+    });
+    
+    // Then convert lab colors
+    normalized = normalized.replace(/lab\([^)]*\)/gi, (match) => {
       try {
         const converted = labToRgb(match);
-        // If conversion failed (returned original), use a safe fallback
         if (converted === match) {
-          // Use appropriate fallback based on property type
+          // Conversion failed, use fallback
           if (property === "backgroundColor" || property === "background") {
             return "white";
           } else if (property === "color") {
@@ -280,7 +398,6 @@ function normalizeColor(value: string, property?: string) {
         return converted;
       } catch (error) {
         console.warn("Error normalizing LAB color:", match, error);
-        // Use safe fallback based on property
         if (property === "backgroundColor" || property === "background") {
           return "white";
         } else if (property === "color") {
@@ -289,14 +406,62 @@ function normalizeColor(value: string, property?: string) {
         return "transparent";
       }
     });
+    
+    return normalized;
   } catch (error) {
     console.warn("Error in normalizeColor:", value, error);
     // Return safe fallback
     if (property === "backgroundColor" || property === "background") {
       return "white";
+    } else if (property === "color") {
+      return "black";
     }
     return value;
   }
+}
+
+function convertAllColorsInElement(element: HTMLElement) {
+  // Convert all color-related styles on this element
+  try {
+    const style = window.getComputedStyle(element);
+    
+    // Get and convert all color properties
+    const colorProps = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 
+                        'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+                        'outlineColor', 'textShadow', 'boxShadow'] as const;
+    
+    colorProps.forEach((prop) => {
+      try {
+        const value = style.getPropertyValue(prop);
+        if (value && /(lab|oklab)\(/i.test(value)) {
+          const normalized = normalizeColor(value, prop);
+          if (normalized && !/(lab|oklab)\(/i.test(normalized)) {
+            element.style.setProperty(prop, normalized);
+          } else {
+            // Set safe fallback
+            if (prop === 'backgroundColor') {
+              element.style.setProperty(prop, 'white');
+            } else if (prop === 'color') {
+              element.style.setProperty(prop, 'black');
+            } else if (prop.includes('border')) {
+              element.style.setProperty(prop, 'currentColor');
+            }
+          }
+        }
+      } catch (error) {
+        // Ignore errors for individual properties
+      }
+    });
+  } catch (error) {
+    console.warn("Error converting colors in element:", error);
+  }
+  
+  // Recursively convert colors in all children
+  Array.from(element.children).forEach((child) => {
+    if (child instanceof HTMLElement) {
+      convertAllColorsInElement(child);
+    }
+  });
 }
 
 function createPrintableClone(source: HTMLElement) {
@@ -316,14 +481,14 @@ function createPrintableClone(source: HTMLElement) {
     }
     try {
       const normalizedColor = normalizeColor(style.color, "color");
-      if (normalizedColor && !normalizedColor.includes("lab(")) {
+      if (normalizedColor && !/(lab|oklab)\(/i.test(normalizedColor)) {
         clonedNode.style.color = normalizedColor;
       } else {
         clonedNode.style.color = "black"; // Safe fallback
       }
       
       const normalizedBg = normalizeColor(style.backgroundColor, "backgroundColor");
-      if (normalizedBg && !normalizedBg.includes("lab(")) {
+      if (normalizedBg && !/(lab|oklab)\(/i.test(normalizedBg)) {
         clonedNode.style.backgroundColor = normalizedBg;
       } else {
         clonedNode.style.backgroundColor = "white"; // Safe fallback
@@ -341,7 +506,7 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.textIndent = style.textIndent;
       clonedNode.style.textAlign = style.textAlign;
       const normalizedTextShadow = normalizeColor(style.textShadow, "textShadow");
-      if (normalizedTextShadow && !normalizedTextShadow.includes("lab(")) {
+      if (normalizedTextShadow && !/(lab|oklab)\(/i.test(normalizedTextShadow)) {
         clonedNode.style.textShadow = normalizedTextShadow;
       }
       
@@ -358,14 +523,14 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.margin = style.margin;
       
       const normalizedBorder = normalizeColor(style.border, "border");
-      if (normalizedBorder && !normalizedBorder.includes("lab(")) {
+      if (normalizedBorder && !/(lab|oklab)\(/i.test(normalizedBorder)) {
         clonedNode.style.border = normalizedBorder;
       } else {
         clonedNode.style.border = style.border || "none";
       }
       
       const normalizedBorderColor = normalizeColor(style.borderColor, "borderColor");
-      if (normalizedBorderColor && !normalizedBorderColor.includes("lab(")) {
+      if (normalizedBorderColor && !/(lab|oklab)\(/i.test(normalizedBorderColor)) {
         clonedNode.style.borderColor = normalizedBorderColor;
       } else {
         clonedNode.style.borderColor = style.borderColor || "currentColor";
@@ -375,7 +540,7 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.borderStyle = style.borderStyle;
       
       const normalizedOutline = normalizeColor(style.outline, "outline");
-      if (normalizedOutline && !normalizedOutline.includes("lab(")) {
+      if (normalizedOutline && !/(lab|oklab)\(/i.test(normalizedOutline)) {
         clonedNode.style.outline = normalizedOutline;
       } else {
         clonedNode.style.outline = style.outline || "none";
@@ -384,7 +549,7 @@ function createPrintableClone(source: HTMLElement) {
       clonedNode.style.borderRadius = style.borderRadius;
       
       const normalizedBoxShadow = normalizeColor(style.boxShadow, "boxShadow");
-      if (normalizedBoxShadow && !normalizedBoxShadow.includes("lab(")) {
+      if (normalizedBoxShadow && !/(lab|oklab)\(/i.test(normalizedBoxShadow)) {
         clonedNode.style.boxShadow = normalizedBoxShadow;
       } else {
         clonedNode.style.boxShadow = style.boxShadow || "none";
@@ -422,6 +587,9 @@ function createPrintableClone(source: HTMLElement) {
   };
 
   applyComputedStyles(source, clone);
+  
+  // Convert all LAB/OKLab colors in the clone before html2canvas processes it
+  convertAllColorsInElement(clone);
 
   const rect = source.getBoundingClientRect();
   const scrollWidth = source.scrollWidth || rect.width;
@@ -1446,26 +1614,74 @@ export default function Home() {
           removeContainer: true,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
-            // Ensure all fonts are loaded and styles are applied
-            const clonedElement = clonedDoc.querySelector('.__pdf-clone') || clonedDoc.body;
+            // Convert all LAB/OKLab colors in the cloned document
+            const convertAllColors = (element: HTMLElement) => {
+              try {
+                const style = window.getComputedStyle(element);
+                
+                // Convert color
+                const color = normalizeColor(style.color, "color");
+                if (color && !/(lab|oklab)\(/i.test(color)) {
+                  element.style.color = color;
+                } else {
+                  element.style.color = "black";
+                }
+                
+                // Convert backgroundColor
+                const bgColor = normalizeColor(style.backgroundColor, "backgroundColor");
+                if (bgColor && !/(lab|oklab)\(/i.test(bgColor)) {
+                  element.style.backgroundColor = bgColor;
+                } else {
+                  element.style.backgroundColor = "white";
+                }
+                
+                // Convert borderColor
+                const borderColor = normalizeColor(style.borderColor, "borderColor");
+                if (borderColor && !/(lab|oklab)\(/i.test(borderColor)) {
+                  element.style.borderColor = borderColor;
+                }
+                
+                // Convert other color properties
+                const textShadow = normalizeColor(style.textShadow, "textShadow");
+                if (textShadow && !/(lab|oklab)\(/i.test(textShadow)) {
+                  element.style.textShadow = textShadow;
+                }
+                
+                const boxShadow = normalizeColor(style.boxShadow, "boxShadow");
+                if (boxShadow && !/(lab|oklab)\(/i.test(boxShadow)) {
+                  element.style.boxShadow = boxShadow;
+                }
+                
+                const outline = normalizeColor(style.outline, "outline");
+                if (outline && !/(lab|oklab)\(/i.test(outline)) {
+                  element.style.outline = outline;
+                }
+              } catch (error) {
+                console.warn("Error converting colors in cloned element:", error);
+              }
+            };
+            
+            // Convert colors for all elements in the cloned document
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                convertAllColors(el);
+              }
+            });
+            
+            // Also convert for body and root element
+            if (clonedDoc.body instanceof HTMLElement) {
+              convertAllColors(clonedDoc.body);
+            }
+            
+            const clonedElement = clonedDoc.querySelector('.__pdf-clone');
             if (clonedElement instanceof HTMLElement) {
+              convertAllColors(clonedElement);
               const computedStyle = getComputedStyle(target);
               clonedElement.style.fontFamily = computedStyle.fontFamily;
               clonedElement.style.fontSize = computedStyle.fontSize;
               clonedElement.style.lineHeight = computedStyle.lineHeight;
               clonedElement.style.fontWeight = computedStyle.fontWeight;
-              // Ensure all text elements have proper styles
-              const allElements = clonedElement.querySelectorAll('*');
-              allElements.forEach((el) => {
-                if (el instanceof HTMLElement) {
-                  const elStyle = getComputedStyle(el);
-                  el.style.fontFamily = elStyle.fontFamily;
-                  el.style.fontSize = elStyle.fontSize;
-                  el.style.lineHeight = elStyle.lineHeight;
-                  el.style.color = elStyle.color;
-                  el.style.fontWeight = elStyle.fontWeight;
-                }
-              });
               // Force reflow to ensure styles are applied
               clonedElement.offsetHeight;
             }
@@ -1497,7 +1713,61 @@ export default function Home() {
           removeContainer: true,
           imageTimeout: 15000,
           onclone: (clonedDoc) => {
-            // Ensure all fonts are loaded and styles are applied
+            // Convert all LAB/OKLab colors in the cloned document
+            const convertAllColors = (el: HTMLElement) => {
+              try {
+                const elStyle = window.getComputedStyle(el);
+                
+                // Convert color
+                const color = normalizeColor(elStyle.color, "color");
+                if (color && !/(lab|oklab)\(/i.test(color)) {
+                  el.style.color = color;
+                } else {
+                  el.style.color = "black";
+                }
+                
+                // Convert backgroundColor
+                const bgColor = normalizeColor(elStyle.backgroundColor, "backgroundColor");
+                if (bgColor && !/(lab|oklab)\(/i.test(bgColor)) {
+                  el.style.backgroundColor = bgColor;
+                } else {
+                  el.style.backgroundColor = "white";
+                }
+                
+                // Convert borderColor
+                const borderColor = normalizeColor(elStyle.borderColor, "borderColor");
+                if (borderColor && !/(lab|oklab)\(/i.test(borderColor)) {
+                  el.style.borderColor = borderColor;
+                }
+                
+                // Convert other color properties
+                const textShadow = normalizeColor(elStyle.textShadow, "textShadow");
+                if (textShadow && !/(lab|oklab)\(/i.test(textShadow)) {
+                  el.style.textShadow = textShadow;
+                }
+                
+                const boxShadow = normalizeColor(elStyle.boxShadow, "boxShadow");
+                if (boxShadow && !/(lab|oklab)\(/i.test(boxShadow)) {
+                  el.style.boxShadow = boxShadow;
+                }
+              } catch (error) {
+                console.warn("Error converting colors:", error);
+              }
+            };
+            
+            // Convert colors for all elements
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach((el) => {
+              if (el instanceof HTMLElement) {
+                convertAllColors(el);
+              }
+            });
+            
+            // Also convert for body
+            if (clonedDoc.body instanceof HTMLElement) {
+              convertAllColors(clonedDoc.body);
+            }
+            
             const clonedElement = clonedDoc.querySelector('.__pdf-clone') || clonedDoc.body;
             if (clonedElement instanceof HTMLElement) {
               const computedStyle = getComputedStyle(element);
@@ -1505,18 +1775,7 @@ export default function Home() {
               clonedElement.style.fontSize = computedStyle.fontSize;
               clonedElement.style.lineHeight = computedStyle.lineHeight;
               clonedElement.style.fontWeight = computedStyle.fontWeight;
-              // Ensure all text elements have proper styles
-              const allElements = clonedElement.querySelectorAll('*');
-              allElements.forEach((el) => {
-                if (el instanceof HTMLElement) {
-                  const elStyle = getComputedStyle(el);
-                  el.style.fontFamily = elStyle.fontFamily;
-                  el.style.fontSize = elStyle.fontSize;
-                  el.style.lineHeight = elStyle.lineHeight;
-                  el.style.color = elStyle.color;
-                  el.style.fontWeight = elStyle.fontWeight;
-                }
-              });
+              convertAllColors(clonedElement);
               // Force reflow to ensure styles are applied
               clonedElement.offsetHeight;
             }
