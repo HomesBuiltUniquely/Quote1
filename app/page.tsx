@@ -52,6 +52,7 @@ type RoomSummaryRow = {
   appliances: number;
   services: number;
   furniture: number;
+  worktops: number;
   total?: number;
 };
 
@@ -1067,6 +1068,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       appliances: number;
       services: number;
       furniture: number;
+      worktops: number;
       total: number;
     }>((acc, row) => {
       acc.modules += row.modules ?? 0;
@@ -1074,13 +1076,15 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       acc.appliances += row.appliances ?? 0;
       acc.services += row.services ?? 0;
       acc.furniture += row.furniture ?? 0;
+      acc.worktops += row.worktops ?? 0;
       acc.total +=
         row.total ??
         (row.modules ?? 0) +
           (row.accessories ?? 0) +
           (row.appliances ?? 0) +
           (row.services ?? 0) +
-          (row.furniture ?? 0);
+          (row.furniture ?? 0) +
+          (row.worktops ?? 0);
       return acc;
     }, {
       modules: 0,
@@ -1088,6 +1092,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       appliances: 0,
       services: 0,
       furniture: 0,
+      worktops: 0,
       total: 0,
     });
 
@@ -1296,6 +1301,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                   <th className="px-4 py-3 text-right">Appliances</th>
                   <th className="px-4 py-3 text-right">Services</th>
                   <th className="px-4 py-3 text-right">Furniture</th>
+                  <th className="px-4 py-3 text-right">Worktops</th>
                   <th className="px-4 py-3 text-right">Total</th>
                 </tr>
               </thead>
@@ -1310,6 +1316,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     <td className="px-4 py-3 text-right">{formatMoney(row.appliances)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(row.services)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(row.furniture)}</td>
+                    <td className="px-4 py-3 text-right">{formatMoney(row.worktops)}</td>
                     <td className="px-4 py-3 text-right font-semibold text-zinc-900">
                       {formatMoney(row.total)}
                     </td>
@@ -1323,6 +1330,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.appliances)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.services)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.furniture)}</td>
+                    <td className="px-4 py-3 text-right">{formatMoney(totalsRow.worktops)}</td>
                     <td className="px-4 py-3 text-right">{formatMoney(totalsRow.total)}</td>
                   </tr>
                 )}

@@ -52,6 +52,7 @@ type SummaryFinancialRow = {
   appliances: number;
   services: number;
   furniture: number;
+  worktops: number;
   total?: number;
 };
 
@@ -78,6 +79,7 @@ type SummaryHeaderIndices = {
   appliances?: number;
   services?: number;
   furniture?: number;
+  worktops?: number;
   total: number;
 };
 
@@ -111,7 +113,7 @@ function getChunkStorage() {
 
 export async function POST(request: Request) {
   try {
-    const formData = await request.formData();
+  const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const uploadId = formData.get("uploadId") as string | null;
 
@@ -127,11 +129,11 @@ export async function POST(request: Request) {
         const baseUrl = origin?.startsWith("http") ? origin : `${protocol}://${origin}`;
         const chunkResponse = await fetch(`${baseUrl}/api/upload-chunk?uploadId=${uploadId}`);
         if (!chunkResponse.ok) {
-          return NextResponse.json(
+    return NextResponse.json(
             { error: "Failed to retrieve uploaded file" },
-            { status: 400 }
-          );
-        }
+      { status: 400 }
+    );
+  }
         buffer = await chunkResponse.arrayBuffer();
         fileName = "uploaded.xlsx"; // Default name
       } catch (error) {
@@ -193,27 +195,27 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!workbook.SheetNames.length) {
-      return NextResponse.json(
-        { error: "No sheets found in uploaded workbook" },
-        { status: 400 }
-      );
-    }
+  if (!workbook.SheetNames.length) {
+    return NextResponse.json(
+      { error: "No sheets found in uploaded workbook" },
+      { status: 400 }
+    );
+  }
 
     let materialsByRoom, financials, rooms, meta, payload;
     try {
       const summaryResult = parseSummarySheet(workbook);
       materialsByRoom = summaryResult.materialsByRoom;
       financials = summaryResult.financials;
-      const finalizedSummary = finalizeFinancials(financials);
+  const finalizedSummary = finalizeFinancials(financials);
       rooms = aggregateRooms(workbook, materialsByRoom);
 
-      if (!rooms.length) {
-        return NextResponse.json(
-          { error: "No recognizable cabinet data found in workbook" },
-          { status: 400 }
-        );
-      }
+  if (!rooms.length) {
+    return NextResponse.json(
+      { error: "No recognizable cabinet data found in workbook" },
+      { status: 400 }
+    );
+  }
 
       meta = extractMetadata(workbook);
       payload = formatRooms(rooms);
@@ -226,24 +228,24 @@ export async function POST(request: Request) {
     }
 
     try {
-      const calculatedTotal = payload.reduce((roomSum, room) => {
-        return (
-          roomSum +
-          room.types.reduce((typeSum, type) => typeSum + (type.stats.total ?? 0), 0)
-        );
-      }, 0);
+  const calculatedTotal = payload.reduce((roomSum, room) => {
+    return (
+      roomSum +
+      room.types.reduce((typeSum, type) => typeSum + (type.stats.total ?? 0), 0)
+    );
+  }, 0);
 
       const finalizedSummary = finalizeFinancials(financials);
-      const preferredTotal =
-        finalizedSummary?.totalPayable != null && !Number.isNaN(finalizedSummary.totalPayable)
-          ? finalizedSummary.totalPayable
-          : calculatedTotal;
+  const preferredTotal =
+    finalizedSummary?.totalPayable != null && !Number.isNaN(finalizedSummary.totalPayable)
+      ? finalizedSummary.totalPayable
+      : calculatedTotal;
 
-      if (preferredTotal > 0 && meta.totalProjectCost == null) {
-        meta.totalProjectCost = Number(preferredTotal.toFixed(2));
-      }
-
-      return NextResponse.json({ rooms: payload, meta, summary: finalizedSummary });
+  if (preferredTotal > 0 && meta.totalProjectCost == null) {
+    meta.totalProjectCost = Number(preferredTotal.toFixed(2));
+  }
+ 
+  return NextResponse.json({ rooms: payload, meta, summary: finalizedSummary });
     } catch (error) {
       console.error("Error calculating totals:", error);
       return NextResponse.json(
@@ -354,6 +356,8 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
               upper.includes("DECOR")
             ) {
               indexMap.furniture = index;
+            } else if (upper.includes("WORKTOP")) {
+              indexMap.worktops = index;
             } else if (upper.includes("HARDWARE") && !indexMap.accessories) {
               indexMap.accessories = index;
             }
@@ -402,6 +406,10 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
       indices.furniture != null
         ? toNumber(values[indices.furniture] as string | number | undefined)
         : undefined;
+    const worktopsValue =
+      indices.worktops != null
+        ? toNumber(values[indices.worktops] as string | number | undefined)
+        : undefined;
  
     const rowNumericCandidates = values.map((value) =>
       toNumber(value as string | number | undefined)
@@ -413,6 +421,7 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
       appliancesValue,
       servicesValue,
       furnitureValue,
+      worktopsValue,
       totalValue,
       ...rowNumericCandidates,
     ].some((value) => typeof value === "number");
@@ -431,6 +440,7 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
         appliancesValue,
         servicesValue,
         furnitureValue,
+        worktopsValue,
         ...rowNumericCandidates
       );
       if (typeof subtotalNumeric === "number" && financials.subtotal == null) {
@@ -446,7 +456,8 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
         accessoriesValue,
         appliancesValue,
         servicesValue,
-        furnitureValue
+        furnitureValue,
+        worktopsValue
       );
       if (typeof subtotalNumeric === "number") {
         financials.subtotal = subtotalNumeric;
@@ -462,6 +473,7 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
         appliancesValue,
         servicesValue,
         furnitureValue,
+        worktopsValue,
         ...rowNumericCandidates
       );
       if (typeof discountNumeric === "number") {
@@ -477,7 +489,8 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
         accessoriesValue,
         appliancesValue,
         servicesValue,
-        furnitureValue
+        furnitureValue,
+        worktopsValue
       );
       if (typeof payableNumeric === "number") {
         financials.totalPayable = payableNumeric;
@@ -492,6 +505,7 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
       appliances: appliancesValue ?? 0,
       services: servicesValue ?? 0,
       furniture: furnitureValue ?? 0,
+      worktops: worktopsValue ?? 0,
     };
 
     if (typeof totalValue === "number") {
@@ -502,7 +516,8 @@ function parseSummarySheet(workbook: ReturnType<typeof read>) {
         summaryRow.accessories +
         summaryRow.appliances +
         summaryRow.services +
-        summaryRow.furniture;
+        summaryRow.furniture +
+        summaryRow.worktops;
       if (derivedTotal > 0) {
         summaryRow.total = derivedTotal;
       }
@@ -537,6 +552,7 @@ function finalizeFinancials(financials: SummaryFinancials | null) {
         appliances: 0,
         services: 0,
         furniture: 0,
+        worktops: 0,
         total: financials.subtotal,
       });
     }
