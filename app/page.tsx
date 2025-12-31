@@ -1043,6 +1043,11 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
       console.log("Room summary from API:", summary);
     }
 
+    // Helper function to remove bracket values (content within parentheses)
+    const removeBracketValues = (text: string): string => {
+      return text.replace(/\s*\([^)]*\)/g, '').trim();
+    };
+
     const effectiveTotal = projectTotalProp;
 
     const discountAmountValue =
@@ -1517,7 +1522,7 @@ const PreviewContent = forwardRef<HTMLDivElement, PreviewContentProps>(
                                   <span className="font-medium text-zinc-900">
                                     {key}:
                                   </span>{" "}
-                                  {value}
+                                  {removeBracketValues(value)}
                                 </p>
                               ))}
                             </div>
