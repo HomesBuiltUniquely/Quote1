@@ -1907,6 +1907,8 @@ export default function Home() {
   const [pdfFilename, setPdfFilename] = useState("design_summary.pdf");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isUploadingToS3, setIsUploadingToS3] = useState(false);
+  const [s3Url, setS3Url] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const computedProjectTotal = useMemo(() => {
@@ -2092,6 +2094,195 @@ export default function Home() {
 
   const closePreview = useCallback(() => setIsPreviewOpen(false), []);
 
+  // Helper function to generate PDF blob
+  const generatePdfBlob = useCallback(async (): Promise<Blob | null> => {
+    if (!preview || !preview.length || !previewRef.current) {
+      return null;
+    }
+
+    const { clone, cleanup } = createPrintableClone(previewRef.current);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pageWidth - 2 * margin;
+      const safetyBuffer = 10;
+
+      let currentY = margin;
+
+      const getFlattenedElements = (element: HTMLElement): HTMLElement[] => {
+        const flatList: HTMLElement[] = [];
+        const isWrapper =
+          element.tagName === "SECTION" ||
+          (element.tagName === "DIV" &&
+            (element.className.includes("space-y-6") ||
+              element.className.includes("space-y-4") ||
+              element.className.includes("space-y-10")));
+
+        const isCard =
+          element.className.includes("rounded-2xl") ||
+          element.className.includes("rounded-3xl");
+        const isHeader = element.className.includes("border-b");
+        const isDiscountSection =
+          element.getAttribute("data-discount-section") === "true";
+        const isContentSection =
+          element.className.includes("space-y-2") ||
+          element.className.includes("space-y-3");
+        const isSectionTitle =
+          element.className.includes("space-y-2") &&
+          element.querySelector("h2") !== null;
+
+        if (
+          isCard ||
+          isHeader ||
+          isDiscountSection ||
+          isContentSection ||
+          isSectionTitle
+        ) {
+          if (element.offsetHeight > 0 || element.textContent?.trim())
+            flatList.push(element);
+          return flatList;
+        }
+
+        if (isWrapper) {
+          Array.from(element.children).forEach((child) => {
+            if (child instanceof HTMLElement) {
+              flatList.push(...getFlattenedElements(child));
+            }
+          });
+          return flatList;
+        } else {
+          if (element.offsetHeight > 0 || element.textContent?.trim()) {
+            flatList.push(element);
+          }
+        }
+        return flatList;
+      };
+
+      const elementsToProcess = getFlattenedElements(clone);
+
+      const uniqueElements: HTMLElement[] = [];
+      const seen = new Set<HTMLElement>();
+
+      for (const element of elementsToProcess) {
+        if (seen.has(element)) continue;
+
+        let isDuplicate = false;
+        for (const existing of uniqueElements) {
+          if (existing.contains(element) || element.contains(existing)) {
+            if (existing.contains(element)) {
+              isDuplicate = true;
+              break;
+            }
+            if (element.contains(existing)) {
+              const index = uniqueElements.indexOf(existing);
+              if (index > -1) {
+                uniqueElements.splice(index, 1);
+                seen.delete(existing);
+              }
+            }
+          }
+        }
+
+        if (!isDuplicate) {
+          uniqueElements.push(element);
+          seen.add(element);
+        }
+      }
+
+      uniqueElements.sort((a, b) => {
+        const aRect = a.getBoundingClientRect();
+        const bRect = b.getBoundingClientRect();
+        return aRect.top - bRect.top;
+      });
+
+      const processElement = async (element: HTMLElement) => {
+        const hasText =
+          element.textContent?.trim() &&
+          element.textContent.trim().length > 10;
+        const hasVisibleContent =
+          element.offsetHeight > 0 || hasText;
+        if (!hasVisibleContent || (element.offsetHeight < 5 && !hasText))
+          return;
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          windowWidth: 1200,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfImgHeight = (imgProps.height * contentWidth) / imgProps.width;
+
+        if (currentY + pdfImgHeight + safetyBuffer > pageHeight - margin) {
+          if (currentY > margin) {
+            pdf.addPage();
+            currentY = margin;
+          }
+        }
+
+        if (pdfImgHeight > pageHeight - 2 * margin) {
+          let heightLeft = pdfImgHeight;
+
+          pdf.addImage(
+            imgData,
+            "PNG",
+            margin,
+            currentY,
+            contentWidth,
+            pdfImgHeight
+          );
+          const printedOnFirstPage = pageHeight - margin - currentY;
+          heightLeft -= printedOnFirstPage;
+
+          while (heightLeft > 0) {
+            pdf.addPage();
+            currentY = margin;
+
+            const yOffset = -1 * (pdfImgHeight - heightLeft) + margin;
+
+            pdf.addImage(
+              imgData,
+              "PNG",
+              margin,
+              yOffset,
+              contentWidth,
+              pdfImgHeight
+            );
+            heightLeft -= pageHeight - 2 * margin;
+          }
+
+          currentY = margin;
+        } else {
+          pdf.addImage(
+            imgData,
+            "PNG",
+            margin,
+            currentY,
+            contentWidth,
+            pdfImgHeight
+          );
+          currentY += pdfImgHeight + 5;
+        }
+      };
+
+      for (const element of uniqueElements) {
+        await processElement(element);
+      }
+
+      return pdf.output("blob");
+    } finally {
+      cleanup();
+    }
+  }, [preview]);
+
   const handleMetaFieldChange = useCallback(
     (field: keyof QuoteMetadata, value: string) => {
       setMetadata((previous) => {
@@ -2144,194 +2335,29 @@ export default function Home() {
     try {
       setIsGeneratingPdf(true);
 
-      // 1. Create the clone
-      const { clone, cleanup } = createPrintableClone(previewRef.current);
-
-      try {
-        // Wait for fonts/styles to settle
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pageWidth = pdf.internal.pageSize.getWidth(); // 210mm
-        const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
-        const margin = 10;
-        const contentWidth = pageWidth - 2 * margin; // 190mm
-        const safetyBuffer = 10; // Extra buffer at bottom of page to prevent cutting
-
-        let currentY = margin;
-
-        // 2. UNWRAP AND FLATTEN THE DOM
-        // Instead of grabbing sections, we grab the "Atomic Print Units" directly.
-        // This unwraps the room containers so we can process each card individually.
-        
-        const getFlattenedElements = (element: HTMLElement): HTMLElement[] => {
-          const flatList: HTMLElement[] = [];
-          
-          // Check if this element is a wrapper we should unwrap
-          // We unwrap SECTION tags and DIVs used for grouping (space-y-*)
-          const isWrapper = 
-            element.tagName === 'SECTION' || 
-            (element.tagName === 'DIV' && 
-             (element.className.includes('space-y-6') || 
-              element.className.includes('space-y-4') ||
-              element.className.includes('space-y-10')));
-
-          // BUT, we must NOT unwrap cards, headers, or content sections.
-          // Cards have 'rounded-2xl' or 'rounded-3xl'.
-          // Headers often have 'border-b'.
-          // Discount section has data-discount-section="true" - keep that wrapper for grid layout
-          // Content sections with space-y-2 or space-y-3 should be kept intact (like Core Materials, Material Thickness)
-          const isCard = element.className.includes('rounded-2xl') || element.className.includes('rounded-3xl');
-          const isHeader = element.className.includes('border-b');
-          const isDiscountSection = element.getAttribute('data-discount-section') === 'true';
-          const isContentSection = element.className.includes('space-y-2') || element.className.includes('space-y-3');
-          // Keep section title containers (like "Project Policies & Materials" header)
-          const isSectionTitle = element.className.includes('space-y-2') && element.querySelector('h2') !== null;
-          
-          // If it's a card, header, discount section, content section, or section title, keep it intact (don't unwrap).
-          if (isCard || isHeader || isDiscountSection || isContentSection || isSectionTitle) {
-             if (element.offsetHeight > 0 || element.textContent?.trim()) flatList.push(element);
-             return flatList;
-          }
-
-          if (isWrapper) {
-            // Unwrap: process children but don't add the wrapper itself to avoid duplication
-            Array.from(element.children).forEach(child => {
-              if (child instanceof HTMLElement) {
-                flatList.push(...getFlattenedElements(child));
-              }
-            });
-            // Return early - don't add the wrapper itself
-            return flatList;
-          } else {
-            // It's a leaf node or something else (like H1, H2), keep it.
-            if (element.offsetHeight > 0 || element.textContent?.trim()) {
-              flatList.push(element);
-            }
-          }
-          return flatList;
-        };
-
-        const elementsToProcess = getFlattenedElements(clone);
-        
-        // Remove duplicates - check if elements are the same or if one contains the other
-        const uniqueElements: HTMLElement[] = [];
-        const seen = new Set<HTMLElement>();
-        
-        for (const element of elementsToProcess) {
-          // Skip if we've already seen this exact element
-          if (seen.has(element)) continue;
-          
-          // Check if this element is contained within any already-added element
-          let isDuplicate = false;
-          for (const existing of uniqueElements) {
-            if (existing.contains(element) || element.contains(existing)) {
-              // If existing contains this, skip this (keep the parent)
-              if (existing.contains(element)) {
-                isDuplicate = true;
-                break;
-              }
-              // If this contains existing, remove existing and add this (keep the parent)
-              if (element.contains(existing)) {
-                const index = uniqueElements.indexOf(existing);
-                if (index > -1) {
-                  uniqueElements.splice(index, 1);
-                  seen.delete(existing);
-                }
-              }
-            }
-          }
-          
-          if (!isDuplicate) {
-            uniqueElements.push(element);
-            seen.add(element);
-          }
-        }
-        
-        // Sort by position in DOM to maintain order
-        uniqueElements.sort((a, b) => {
-          const aRect = a.getBoundingClientRect();
-          const bRect = b.getBoundingClientRect();
-          return aRect.top - bRect.top;
-        });
-
-        // Helper to process a single element
-        const processElement = async (element: HTMLElement) => {
-          // Skip tiny elements (like invisible spacers), but keep elements with meaningful content
-          const hasText = element.textContent?.trim() && element.textContent.trim().length > 10;
-          const hasVisibleContent = element.offsetHeight > 0 || hasText;
-          if (!hasVisibleContent || (element.offsetHeight < 5 && !hasText)) return;
-
-          const canvas = await html2canvas(element, {
-            scale: 2, // High res
-            useCORS: true,
-            logging: false,
-            backgroundColor: "#ffffff",
-            windowWidth: 1200, // Fix width to prevent squashing
-          });
-
-          const imgData = canvas.toDataURL("image/png");
-
-          // Calculate dimensions in PDF units (mm)
-          const imgProps = pdf.getImageProperties(imgData);
-          const pdfImgHeight = (imgProps.height * contentWidth) / imgProps.width;
-
-          // 3. Page Break Logic
-          
-          // Standard fit check: If adding this element + buffer exceeds page height
-          if (currentY + pdfImgHeight + safetyBuffer > pageHeight - margin) {
-            // Exception: If we are at the very top, don't break (it just doesn't fit, we must slice)
-            if (currentY > margin) {
-               pdf.addPage();
-               currentY = margin;
-            }
-          }
-
-          // 4. Render
-          // Check if the element ITSELF is taller than a single page (giant table)
-          // This is the only time we slice images.
-          if (pdfImgHeight > pageHeight - 2 * margin) {
-            let heightLeft = pdfImgHeight;
-            
-            // Print first chunk
-            pdf.addImage(imgData, "PNG", margin, currentY, contentWidth, pdfImgHeight);
-            const printedOnFirstPage = pageHeight - margin - currentY;
-            heightLeft -= printedOnFirstPage;
-
-            while (heightLeft > 0) {
-              pdf.addPage();
-              currentY = margin;
-
-              // Shift image up via negative offset
-              const yOffset = -1 * (pdfImgHeight - heightLeft) + margin;
-
-              pdf.addImage(imgData, "PNG", margin, yOffset, contentWidth, pdfImgHeight);
-              heightLeft -= pageHeight - 2 * margin;
-            }
-
-            // Reset Y for next element
-            currentY = margin; 
-          } else {
-            // Standard Print
-            pdf.addImage(imgData, "PNG", margin, currentY, contentWidth, pdfImgHeight);
-            currentY += pdfImgHeight + 5; // Add 5mm gap between blocks
-          }
-        };
-
-        // Process all elements sequentially
-        for (const element of uniqueElements) {
-          await processElement(element);
-        }
-
-        pdf.save(pdfFilename);
-
+      const pdfBlob = await generatePdfBlob();
+      if (!pdfBlob) {
         setStatus({
-          state: "success",
-          message: "PDF generated successfully.",
+          state: "error",
+          message: "Failed to generate PDF blob.",
         });
-      } finally {
-        cleanup();
+        return;
       }
+
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = pdfFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setStatus({
+        state: "success",
+        message: "PDF generated successfully.",
+      });
     } catch (error) {
       console.error("PDF generation failed", error);
       setStatus({
@@ -2344,7 +2370,75 @@ export default function Home() {
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [preview, pdfFilename, setStatus, setIsGeneratingPdf]);
+  }, [preview, pdfFilename, generatePdfBlob]);
+
+  const handleUploadToS3 = useCallback(async () => {
+    if (!preview || !preview.length) {
+      setStatus({
+        state: "error",
+        message: "Upload a workbook and generate the preview before uploading to S3.",
+      });
+      return;
+    }
+
+    if (!previewRef.current) {
+      setStatus({
+        state: "error",
+        message: "Preview content not available. Please refresh and try again.",
+      });
+      return;
+    }
+
+    try {
+      setIsUploadingToS3(true);
+      setS3Url(null);
+
+      const pdfBlob = await generatePdfBlob();
+      if (!pdfBlob) {
+        setStatus({
+          state: "error",
+          message: "Failed to generate PDF blob.",
+        });
+        return;
+      }
+
+      // Upload to S3
+      const formData = new FormData();
+      formData.append("file", pdfBlob, pdfFilename);
+      formData.append("fileName", pdfFilename);
+
+      const response = await fetch("/api/upload-s3", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          error: "Failed to upload to S3",
+        }));
+        throw new Error(errorData.error || "Failed to upload to S3");
+      }
+
+      const data = await response.json();
+      setS3Url(data.url);
+
+      setStatus({
+        state: "success",
+        message: "PDF uploaded to S3 successfully.",
+      });
+    } catch (error) {
+      console.error("S3 upload failed", error);
+      setStatus({
+        state: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload PDF to S3. Please try again.",
+      });
+    } finally {
+      setIsUploadingToS3(false);
+    }
+  }, [preview, pdfFilename, generatePdfBlob]);
    
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-16 font-sans">
@@ -2428,6 +2522,14 @@ export default function Home() {
               >
                 {isGeneratingPdf ? "Preparing PDF…" : `Download PDF (${pdfFilename})`}
               </button>
+              <button
+                type="button"
+                onClick={handleUploadToS3}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!preview || !preview.length || isUploadingToS3 || isGeneratingPdf}
+              >
+                {isUploadingToS3 ? "Uploading to S3…" : "Upload to S3"}
+              </button>
             </div>
           </div>
   
@@ -2436,8 +2538,23 @@ export default function Home() {
               Upload a workbook to enable preview actions.
             </div>
           ) : (
-            <div className="mt-6 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-6 text-sm text-emerald-700">
-              Preview generated. Use the buttons above to open the full-page view or download the PDF.
+            <div className="mt-6 space-y-4">
+              <div className="rounded-xl border border-dashed border-emerald-300 bg-emerald-50 p-6 text-sm text-emerald-700">
+                Preview generated. Use the buttons above to open the full-page view or download the PDF.
+              </div>
+              {s3Url && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+                  <p className="text-sm font-semibold text-indigo-900 mb-2">PDF uploaded to S3 successfully!</p>
+                  <a
+                    href={s3Url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 underline break-all"
+                  >
+                    {s3Url}
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -2523,32 +2640,55 @@ export default function Home() {
               isPreviewOpen ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
             }`}
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-zinc-200 bg-white/95 px-6 py-4 backdrop-blur">
-              <div>
-                <h2 className="text-lg font-semibold text-zinc-900">
-                  Designer Summary Preview
-                </h2>
-                <p className="text-xs text-zinc-500">
-                  Review the parsed workbook below. Use the buttons to download or close the preview.
-                </p>
+            <div className="sticky top-0 z-10 flex flex-col gap-4 border-b border-zinc-200 bg-white/95 px-6 py-4 backdrop-blur">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">
+                    Designer Summary Preview
+                  </h2>
+                  <p className="text-xs text-zinc-500">
+                    Review the parsed workbook below. Use the buttons to download or close the preview.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    disabled={isGeneratingPdf}
+                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isGeneratingPdf ? "Preparing PDF…" : "Download PDF"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUploadToS3}
+                    disabled={isUploadingToS3 || isGeneratingPdf}
+                    className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-500 focus:outline-none focus:ring-4 focus:ring-green-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isUploadingToS3 ? "Uploading…" : "Upload to S3"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePreview}
+                    className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={isGeneratingPdf}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isGeneratingPdf ? "Preparing PDF…" : "Download PDF"}
-                </button>
-                <button
-                  type="button"
-                  onClick={closePreview}
-                  className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-300"
-                >
-                  Close
-                </button>
-              </div>
+              {s3Url && (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                  <p className="text-xs font-semibold text-indigo-900 mb-1">PDF uploaded to S3:</p>
+                  <a
+                    href={s3Url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-indigo-600 hover:text-indigo-800 underline break-all"
+                  >
+                    {s3Url}
+                  </a>
+                </div>
+              )}
             </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <PreviewContent
