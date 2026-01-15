@@ -2415,8 +2415,23 @@ export default function Home() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({
           error: "Failed to upload to S3",
+          details: "Unable to parse error response",
         }));
-        throw new Error(errorData.error || "Failed to upload to S3");
+        
+        // Build detailed error message
+        let errorMessage = errorData.error || "Failed to upload to S3";
+        if (errorData.details) {
+          errorMessage += `: ${errorData.details}`;
+        }
+        
+        console.error("S3 upload API error:", {
+          status: response.status,
+          error: errorData.error,
+          details: errorData.details,
+          errorCode: errorData.errorCode,
+        });
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -2428,12 +2443,16 @@ export default function Home() {
       });
     } catch (error) {
       console.error("S3 upload failed", error);
+      
+      // Extract error message with details
+      let errorMessage = "Failed to upload PDF to S3. Please try again.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       setStatus({
         state: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to upload PDF to S3. Please try again.",
+        message: errorMessage,
       });
     } finally {
       setIsUploadingToS3(false);
