@@ -81,16 +81,6 @@ export async function POST(request: Request) {
       ContentType: "application/pdf",
     });
 
-    // Log configuration (without sensitive data)
-    console.log("S3 Upload Configuration:", {
-      bucket: bucketName,
-      region: process.env.AWS_REGION || "us-east-1",
-      key: s3Key,
-      hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
-      hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
-      accessKeyPrefix: process.env.AWS_ACCESS_KEY_ID?.substring(0, 4) + "***",
-    });
-
     await s3Client.send(command);
 
     // Generate a signed URL (works for both public and private buckets)
@@ -112,111 +102,68 @@ export async function POST(request: Request) {
       expiresIn: expiresIn,
     });
   } catch (error: unknown) {
-    // Log full error details for debugging
-    console.error("S3 upload error - Full details:", {
-      error,
-      errorType: typeof error,
-      errorName: error && typeof error === 'object' && 'name' in error ? (error as { name?: string }).name : undefined,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      metadata: error && typeof error === 'object' && '$metadata' in error ? (error as { $metadata?: unknown }).$metadata : undefined,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error("S3 upload error:", error);
     
     // Provide more detailed error information
     let errorMessage = "Failed to upload file to S3";
     let errorDetails = "";
     let statusCode = 500;
-    let errorCode: string | undefined;
     
-    // Handle AWS SDK errors - check for $metadata first (most reliable)
-    if (error && typeof error === 'object') {
-      const awsError = error as { 
-        name?: string; 
-        message?: string; 
-        $metadata?: { httpStatusCode?: number; requestId?: string };
-        Code?: string;
-        $fault?: string;
-      };
+    // Handle AWS SDK errors
+    if (error && typeof error === 'object' && 'name' in error) {
+      const awsError = error as { name?: string; message?: string; $metadata?: { httpStatusCode?: number } };
       
-      // Check HTTP status code from AWS metadata (most reliable indicator)
-      const httpStatusCode = awsError.$metadata?.httpStatusCode;
-      if (httpStatusCode === 403) {
+      // Check HTTP status code from AWS
+      if (awsError.$metadata?.httpStatusCode === 403) {
         statusCode = 403;
         errorMessage = "Access Denied (403 Forbidden)";
-        errorDetails = `Your AWS IAM user/role doesn't have permission to upload to this S3 bucket. Possible causes: 1) IAM user needs 's3:PutObject' and 's3:GetObject' permissions, 2) Bucket policy is blocking access, 3) Wrong bucket name or region. Bucket: ${process.env.AWS_S3_BUCKET_NAME}, Region: ${process.env.AWS_REGION || "us-east-1"}`;
-        errorCode = awsError.name || "AccessDenied";
-      } else if (httpStatusCode === 404) {
+        errorDetails = "IAM user lacks required permissions. Ensure the user has 'PutObject' and 'GetObject' permissions for the bucket. See FIX_403_ERROR.md for instructions.";
+      } else if (awsError.$metadata?.httpStatusCode === 404) {
         statusCode = 404;
         errorMessage = "Bucket Not Found (404)";
-        errorDetails = `The S3 bucket was not found. Please verify the bucket name (AWS_S3_BUCKET_NAME=${process.env.AWS_S3_BUCKET_NAME}) and region (AWS_REGION=${process.env.AWS_REGION || "us-east-1"}) are correct.`;
-        errorCode = awsError.name || "NoSuchBucket";
-      } else if (httpStatusCode === 401) {
+        errorDetails = "Bucket not found - verify bucket name and region are correct";
+      }
+      
+      // Check error name/code
+      if (awsError.name === "AccessDenied" || awsError.name === "Forbidden") {
+        statusCode = 403;
+        errorMessage = "Access Denied";
+        errorDetails = "IAM user lacks required permissions. Ensure the user has 'PutObject' and 'GetObject' permissions. See FIX_403_ERROR.md for instructions.";
+      } else if (awsError.name === "NoSuchBucket") {
+        statusCode = 404;
+        errorMessage = "Bucket Not Found";
+        errorDetails = "Bucket not found - verify bucket name and region are correct";
+      } else if (awsError.name === "InvalidAccessKeyId" || awsError.name === "SignatureDoesNotMatch") {
         statusCode = 401;
         errorMessage = "Invalid AWS Credentials";
-        errorDetails = "Invalid AWS credentials. Please verify your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are correct and match the IAM user with S3 permissions.";
-        errorCode = awsError.name || "InvalidAccessKeyId";
+        errorDetails = "Invalid AWS credentials - verify Access Key ID and Secret Access Key in Vercel environment variables";
       }
-      
-      // Check error name/code (fallback if $metadata not available)
-      if (statusCode === 500) {
-        const errorName = awsError.name || awsError.Code;
-        if (errorName === "AccessDenied" || errorName === "Forbidden" || errorName === "403") {
-          statusCode = 403;
-          errorMessage = "Access Denied";
-          errorDetails = `Your AWS IAM user/role doesn't have permission to upload to this S3 bucket. Possible causes: 1) IAM user needs 's3:PutObject' and 's3:GetObject' permissions, 2) Bucket policy is blocking access, 3) Wrong bucket name or region. Bucket: ${process.env.AWS_S3_BUCKET_NAME}, Region: ${process.env.AWS_REGION || "us-east-1"}`;
-          errorCode = errorName;
-        } else if (errorName === "NoSuchBucket" || errorName === "404") {
-          statusCode = 404;
-          errorMessage = "Bucket Not Found";
-          errorDetails = `The S3 bucket was not found. Please verify the bucket name (${process.env.AWS_S3_BUCKET_NAME}) and region (${process.env.AWS_REGION || "us-east-1"}) are correct.`;
-          errorCode = errorName;
-        } else if (errorName === "InvalidAccessKeyId" || errorName === "SignatureDoesNotMatch") {
-          statusCode = 401;
-          errorMessage = "Invalid AWS Credentials";
-          errorDetails = "Invalid AWS credentials. Please verify your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are correct and match the IAM user with S3 permissions.";
-          errorCode = errorName;
-        }
-      }
-      
-      // Store error code if available
-      if (!errorCode && awsError.name) {
-        errorCode = awsError.name;
-      }
-    }
-    
-    // Handle Error instances
-    if (error instanceof Error && statusCode === 500) {
+    } else if (error instanceof Error) {
       errorMessage = error.message;
       
       // Check for common AWS errors in message
       if (error.message.includes("Access Denied") || error.message.includes("403") || error.message.includes("Forbidden")) {
         statusCode = 403;
-        errorDetails = "Your AWS IAM user/role doesn't have permission to upload to this S3 bucket. The IAM user needs 's3:PutObject' and 's3:GetObject' permissions for the bucket.";
+        errorDetails = "Check IAM permissions - user needs PutObject and GetObject permissions. See FIX_403_ERROR.md";
       } else if (error.message.includes("NoSuchBucket") || error.message.includes("404")) {
         statusCode = 404;
-        errorDetails = "The S3 bucket was not found. Please verify the bucket name and region are correct.";
+        errorDetails = "Bucket not found - verify bucket name and region are correct";
       } else if (error.message.includes("InvalidAccessKeyId") || error.message.includes("SignatureDoesNotMatch")) {
         statusCode = 401;
-        errorDetails = "Invalid AWS credentials. Please verify your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are correct.";
+        errorDetails = "Invalid AWS credentials - verify Access Key ID and Secret Access Key";
       } else if (error.message.includes("timeout") || error.message.includes("ECONNRESET")) {
-        errorDetails = "Network timeout - check your network connection and Vercel function timeout settings";
+        errorDetails = "Network timeout - check Vercel function timeout settings";
       }
     }
     
-    // Always return a valid JSON response
     return NextResponse.json(
       {
         error: errorMessage,
-        details: errorDetails || "An unexpected error occurred. Check server logs for more details.",
+        details: errorDetails || "Check server logs for more details",
         timestamp: new Date().toISOString(),
-        ...(errorCode ? { errorCode } : {}),
+        ...(error && typeof error === 'object' && 'name' in error ? { errorCode: (error as { name?: string }).name } : {}),
       },
-      { 
-        status: statusCode,
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      }
+      { status: statusCode }
     );
   }
 }
