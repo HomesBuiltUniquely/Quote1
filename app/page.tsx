@@ -2413,28 +2413,15 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        let errorData;
-        try {
-          const text = await response.text();
-          errorData = text ? JSON.parse(text) : {
-            error: `HTTP ${response.status}`,
-            details: response.status === 403 
-              ? "Access Denied: Your AWS IAM user doesn't have permission to upload to S3. Check IAM permissions."
-              : "An error occurred while uploading to S3",
-          };
-        } catch (parseError) {
-          errorData = {
-            error: `HTTP ${response.status} Error`,
-            details: response.status === 403
-              ? "Access Denied: Your AWS IAM user doesn't have permission to upload to S3. The IAM user needs 's3:PutObject' and 's3:GetObject' permissions."
-              : `Server returned status ${response.status}. Check your AWS configuration.`,
-          };
-        }
+        const errorData = await response.json().catch(() => ({
+          error: "Failed to upload to S3",
+          details: "Unable to parse error response",
+        }));
         
         // Build detailed error message
         let errorMessage = errorData.error || "Failed to upload to S3";
         if (errorData.details) {
-          errorMessage += ` - ${errorData.details}`;
+          errorMessage += `: ${errorData.details}`;
         }
         
         console.error("S3 upload API error:", {
